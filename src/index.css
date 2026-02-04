@@ -1,0 +1,400 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+    --hud-primary: #00f0ff;
+    --hud-secondary: #ffaa00;
+    /* Solar/Home */
+    --hud-tertiary: #0088ff;
+    /* Target */
+    --hud-bg: rgba(5, 10, 15, 0.25);
+    --glass-edge: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+#root {
+    width: 100vw;
+    height: 100vh;
+}
+
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: #000;
+}
+
+/* UI Overlay */
+#cockpit-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.top-bar {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    padding-top: 10px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+}
+
+.compass-container {
+    width: 600px;
+    height: 30px;
+    overflow: hidden;
+    position: relative;
+    mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+    border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.compass-tape {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    transition: transform 0.1s linear;
+}
+
+.tick {
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--hud-primary);
+    font-family: 'Share Tech Mono';
+    font-size: 10px;
+    height: 20px;
+    justify-content: flex-end;
+    border-right: 1px solid rgba(0, 240, 255, 0.1);
+}
+
+.tick.major {
+    border-right: 1px solid var(--hud-primary);
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.dashboard-container {
+    width: 100%;
+    height: 22vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    perspective: 1000px;
+    padding-bottom: 0;
+}
+
+.dashboard-glass {
+    width: 95%;
+    max-width: 1400px;
+    height: 100%;
+    background: var(--hud-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid var(--glass-edge);
+    border-radius: 60px 60px 0 0;
+    transform: rotateX(10deg) translateY(10px);
+    transform-origin: bottom center;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    padding: 20px 40px;
+    box-sizing: border-box;
+}
+
+.screen-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.screen-left {
+    align-items: flex-start;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.screen-right {
+    align-items: flex-end;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: right;
+}
+
+.screen-center {
+    flex: 1.2;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    padding-bottom: 5px;
+}
+
+.data-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.label {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.data-value {
+    font-family: 'Share Tech Mono';
+    font-size: 18px;
+    color: var(--hud-primary);
+    text-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
+}
+
+.data-big {
+    font-size: 32px;
+    color: #fff;
+}
+
+.unit {
+    font-size: 12px;
+    color: #888;
+    margin-left: 2px;
+}
+
+.radar-group {
+    position: relative;
+    width: 340px;
+    height: 140px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.steering-handles {
+    position: absolute;
+    bottom: -10px;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.8));
+    transform-origin: center 120%;
+    transition: transform 0.1s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+}
+
+.radar-container {
+    width: 120px;
+    height: 120px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle, rgba(0, 40, 60, 0.2) 0%, transparent 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 2;
+    margin-bottom: 5px;
+}
+
+.radar-grid {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 15px 15px;
+}
+
+.radar-ship {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 10px solid #fff;
+    z-index: 5;
+}
+
+.radar-blip {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.1s;
+}
+
+.blip-target {
+    background-color: var(--hud-tertiary);
+    box-shadow: 0 0 6px var(--hud-tertiary);
+    z-index: 4;
+}
+
+.blip-home {
+    background-color: var(--hud-secondary);
+    box-shadow: 0 0 6px var(--hud-secondary);
+    z-index: 3;
+}
+
+.touch-btn {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(4px);
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    pointer-events: auto;
+    transition: transform 0.1s, background 0.1s;
+    z-index: 50;
+    cursor: pointer;
+}
+
+.touch-btn:active {
+    background: rgba(0, 240, 255, 0.15);
+    transform: scale(0.95);
+    color: #fff;
+    border-color: var(--hud-primary);
+}
+
+#btn-warp {
+    right: 20px;
+    bottom: 30vh;
+}
+
+#btn-brake {
+    right: 20px;
+    bottom: 18vh;
+}
+
+.controls-hint {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.25);
+    line-height: 1.5;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.reticle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reticle::after {
+    content: '';
+    width: 3px;
+    height: 3px;
+    background: var(--hud-primary);
+    border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        height: 160px;
+        padding-bottom: 0;
+    }
+
+    .dashboard-glass {
+        width: 100%;
+        border-radius: 30px 30px 0 0;
+        padding: 10px 15px;
+        transform: rotateX(5deg) translateY(0px);
+    }
+
+    .radar-group {
+        width: 120px;
+        height: 120px;
+    }
+
+    .steering-handles {
+        width: 140%;
+        left: -20%;
+        bottom: -20px;
+    }
+
+    .radar-container {
+        width: 90px;
+        height: 90px;
+    }
+
+    .data-value {
+        font-size: 14px;
+    }
+
+    .data-big {
+        font-size: 20px;
+    }
+
+    .label {
+        font-size: 8px;
+        letter-spacing: 0.5px;
+    }
+
+    .unit {
+        font-size: 10px;
+    }
+
+    .compass-container {
+        width: 300px;
+    }
+
+    #btn-warp {
+        width: 60px;
+        height: 60px;
+        right: 10px;
+        bottom: 25vh;
+    }
+
+    #btn-brake {
+        width: 60px;
+        height: 60px;
+        right: 10px;
+        bottom: 15vh;
+    }
+
+    .screen-left {
+        border-right: none;
+    }
+
+    .screen-right {
+        border-left: none;
+    }
+}
