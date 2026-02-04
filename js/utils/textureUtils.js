@@ -50,3 +50,27 @@ export function createStarTexture() {
     ctx.fillRect(0, 0, 64, 64);
     return new THREE.CanvasTexture(canvas);
 }
+
+// Very soft cloud texture for nebulae - creates a smooth gaussian-like blur
+export function createCloudTexture() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Create a very soft radial gradient - gaussian-like falloff
+    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.1, 'rgba(255,255,255,0.8)');
+    grad.addColorStop(0.3, 'rgba(255,255,255,0.4)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+    grad.addColorStop(0.7, 'rgba(255,255,255,0.05)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    return new THREE.CanvasTexture(canvas);
+}
+

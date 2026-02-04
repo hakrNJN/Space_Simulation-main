@@ -5,6 +5,7 @@ import { createStarTexture, createNoiseTexture } from './utils/textureUtils.js';
 import { createGalaxy, createMilkyWay } from './objects/galaxy.js';
 import { addSystemDetails, createPlanet, createAsteroidBelt } from './objects/solarSystem.js';
 import { createBlackHole, bhPos } from './objects/blackHole.js';
+import { createCrabNebula } from './objects/crabNebula.js';
 
 // --- SETUP ---
 const starTexture = createStarTexture();
@@ -22,7 +23,7 @@ initUI(document.getElementById('compass-tape'));
 
 // Environment
 createGalaxy(scene, starTexture);
-createMilkyWay(scene, starTexture);
+// createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
 
 // Starfield & Dust
 const starGeo = new THREE.BufferGeometry();
@@ -79,12 +80,15 @@ const bhMaterial = createBlackHole(bhGroup);
 planetMeshes.push({ position: bhGroup.position, userData: { name: "GARGANTUA", isSystem: true, baseScale: 20000 } });
 const bhDebris = createAsteroidBelt(bhGroup, 150, 30000, 45000, '#553322', asteroidTexture, animatedBelts);
 
-// Other Systems
+// Crab Nebula with Pulsar (Neutron Star) at center
+const crabNebulaPos = new THREE.Vector3(600000, -10000, 600000);
+const crabNebula = createCrabNebula(scene, starTexture, crabNebulaPos);
+
 const neutronGroup = new THREE.Group();
-neutronGroup.position.set(600000, -10000, 600000);
+neutronGroup.position.copy(crabNebulaPos);
 scene.add(neutronGroup);
 systemGroups.push(neutronGroup);
-planetMeshes.push({ position: neutronGroup.position, userData: { name: "NEUTRON STAR", isSystem: true, baseScale: 20000 } });
+planetMeshes.push({ position: neutronGroup.position, userData: { name: "CRAB NEBULA PULSAR", isSystem: true, baseScale: 20000 } });
 neutronGroup.add(new THREE.Mesh(new THREE.SphereGeometry(100, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff })));
 const neuGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTexture, color: 0x00ffff, blending: THREE.AdditiveBlending }));
 neuGlow.scale.set(20000, 20000, 1);
@@ -157,6 +161,10 @@ function animate() {
     const time = Date.now() * 0.001;
     const globalPulse = 1.0 + Math.sin(time * 3) * 0.2;
 
+    // Strong beacon blink for star systems - helps users identify navigation targets
+    const beaconBlink = 0.5 + Math.abs(Math.sin(time * 2)) * 0.5; // Slower, more visible pulse
+    const fastBlink = 0.3 + Math.pow(Math.abs(Math.sin(time * 4)), 3) * 0.7; // Sharp flash effect
+
     // Controls Logic
     let inputX = mouse.x;
     let inputY = mouse.y;
@@ -201,10 +209,27 @@ function animate() {
             const dist = camera.position.distanceTo(mesh.position);
             let scaleFactor = 50000 / Math.max(dist, 10000);
             scaleFactor = Math.min(Math.max(scaleFactor, 0.05), 1.0);
-            if (dist > 200000) scaleFactor = Math.max(scaleFactor, 0.15);
-            const finalScale = mesh.userData.baseScale * scaleFactor * globalPulse;
+
+            // When far away, make systems blink like navigation beacons
+            let blinkEffect = 1.0;
+            let opacityBoost = 0;
+            if (dist > 100000) {
+                // Strong blinking effect for distant systems - acts as navigation beacon
+                blinkEffect = 0.6 + fastBlink * 0.8;
+                opacityBoost = beaconBlink * 0.5;
+                scaleFactor = Math.max(scaleFactor, 0.2); // Ensure visibility from far
+            } else if (dist > 50000) {
+                // Moderate pulse for medium distance
+                blinkEffect = 0.8 + beaconBlink * 0.4;
+                opacityBoost = beaconBlink * 0.3;
+            } else {
+                // Subtle pulse when close
+                blinkEffect = globalPulse;
+            }
+
+            const finalScale = mesh.userData.baseScale * scaleFactor * blinkEffect;
             mesh.userData.glow.scale.set(finalScale, finalScale, 1);
-            mesh.userData.glow.material.opacity = Math.min(scaleFactor * 2.0, 0.3);
+            mesh.userData.glow.material.opacity = Math.min(scaleFactor * 2.0 + opacityBoost, 0.8);
         }
     });
 

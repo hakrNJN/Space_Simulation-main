@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { createNoiseTexture, createStarTexture, createRadialTexture } from '../utils/textureUtils';
+import { createStarSystem, updateStarSystem } from '../../js/objects/StarSystem';
+import { createCrabNebula } from '../../js/objects/crabNebula';
 
 export class SpaceEngine {
     constructor(container, onUpdate) {
@@ -45,10 +47,12 @@ export class SpaceEngine {
 
     init() {
         this.initScene();
+        this.initBackdrop(); // Endless star field
         this.initGalaxy();
         this.initSolarSystem();
         this.initBlackHole();
         this.initOtherSystems();
+        this.initCruiseEffect(); // Cruising star streaks
         this.initInput();
         this.animate = this.animate.bind(this);
         this.animate();
@@ -60,8 +64,8 @@ export class SpaceEngine {
         // Reduced fog density to allow seeing objects at 10 Billion units
         this.scene.fog = new THREE.FogExp2(0x000000, 0.00000000001);
 
-        // Increased Far Plane to 10 Billion to view distant Galaxy
-        this.camera = new THREE.PerspectiveCamera(55, this.width / this.height, 0.1, 10000000000);
+        // Increased Far Plane to 100 Billion to view distant Galaxy
+        this.camera = new THREE.PerspectiveCamera(55, this.width / this.height, 0.1, 100000000000);
         this.camera.position.set(0, 5000, 55000);
         this.camera.lookAt(new THREE.Vector3(0, 0, 0));
 
@@ -81,6 +85,112 @@ export class SpaceEngine {
         const light = new THREE.PointLight(color, intensity, 5000000, 0.5);
         light.position.set(pos.x, pos.y, pos.z);
         this.scene.add(light);
+    }
+
+    initBackdrop() {
+        const starTexture = createStarTexture();
+        const radialTexture = createRadialTexture();
+
+        // Create group that follows camera
+        this.starBackdrop = new THREE.Group();
+        this.scene.add(this.starBackdrop);
+
+        // ============================================
+        // 1. INFINITE STAR FIELD - REDUCED COUNT (30%)
+        // ============================================
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 9000; // Reduced from 30000 to 9000 (30%)
+        const sPos = new Float32Array(starCount * 3);
+        const sCol = new Float32Array(starCount * 3);
+        const sSizes = new Float32Array(starCount);
+
+        for (let i = 0; i < starCount; i++) {
+            // Spherical distribution at varying distances
+            const r = 500000 + Math.random() * 5000000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+
+            sPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            sPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            sPos[i * 3 + 2] = r * Math.cos(phi);
+
+            // Varied star colors and brightness
+            const colorType = Math.random();
+            const c = new THREE.Color();
+            if (colorType < 0.5) {
+                c.setHSL(0.1, 0.1, 0.7 + Math.random() * 0.3);  // White
+            } else if (colorType < 0.7) {
+                c.setHSL(0.6, 0.3, 0.6 + Math.random() * 0.3);  // Blue
+            } else if (colorType < 0.85) {
+                c.setHSL(0.08, 0.6, 0.5 + Math.random() * 0.3); // Yellow
+            } else {
+                c.setHSL(0.0, 0.6, 0.5 + Math.random() * 0.2);  // Red
+            }
+            sCol[i * 3] = c.r;
+            sCol[i * 3 + 1] = c.g;
+            sCol[i * 3 + 2] = c.b;
+
+            // Multiple star sizes
+            sSizes[i] = Math.pow(Math.random(), 3) * 30000 + 2000;
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+        this.starBackdrop.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+            size: 8000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+        })));
+
+        // ============================================
+        // 2. DISTANT GALAXY SPRITES
+        // ============================================
+        for (let i = 0; i < 50; i++) {
+            const r = 3000000 + Math.random() * 4000000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+
+            const galaxySprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: radialTexture,
+                color: new THREE.Color().setHSL(Math.random() * 0.3, 0.3, 0.4),
+                blending: THREE.AdditiveBlending,
+                opacity: 0.15 + Math.random() * 0.2,
+                transparent: true
+            }));
+
+            const scale = 100000 + Math.random() * 300000;
+            galaxySprite.scale.set(scale, scale * 0.4, 1);
+            galaxySprite.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+            galaxySprite.rotation.z = Math.random() * Math.PI;
+            this.starBackdrop.add(galaxySprite);
+        }
+
+        // ============================================
+        // 3. QUASAR/BRIGHT POINTS (Static now - no blinking)
+        // ============================================
+        for (let i = 0; i < 20; i++) {
+            const r = 4000000 + Math.random() * 3000000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+
+            const quasar = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: starTexture,
+                color: new THREE.Color().setHSL(0.5 + Math.random() * 0.3, 0.8, 0.9),
+                blending: THREE.AdditiveBlending,
+                opacity: 0.7 + Math.random() * 0.3,
+                transparent: true
+            }));
+            quasar.scale.set(20000, 20000, 1);
+            quasar.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+            // Removed blinking userData.pulse
+            this.starBackdrop.add(quasar);
+        }
     }
 
     createAsteroidBelt(group, count, minRadius, maxRadius, colorStr, asteroidTexture) {
@@ -122,7 +232,7 @@ export class SpaceEngine {
             gasCount: 100000,
             radius: 450000,
             branches: 5,
-            spin: 5,
+            spin: 2,
             randomness: 1.0,
             randomnessPower: 2.2,
             insideColor: '#ffccaa',
@@ -132,13 +242,17 @@ export class SpaceEngine {
         };
 
         const galGroup = new THREE.Group();
-        // Moved near the Milky Way band for visual composition
-        galGroup.position.set(200000000, 50000000, -200000000);
+        // Positioned far from Milky Way but within visible range
+        galGroup.position.set(5000000000, 1000000000, -6000000000);
         galGroup.rotation.x = Math.PI / 2.5;
         galGroup.rotation.y = THREE.MathUtils.degToRad(60);
         galGroup.rotation.z = Math.PI / 6;
         // Scale it up significantly since it's now backdrop
         galGroup.scale.set(500, 500, 500);
+
+        // Make Andromeda targetable
+        galGroup.userData = { name: "ANDROMEDA GALAXY", isSystem: true, baseScale: 2000000 };
+        this.planetMeshes.push(galGroup);
 
         this.scene.add(galGroup);
         this.galaxyGroup = galGroup;
@@ -317,126 +431,305 @@ export class SpaceEngine {
         const starTexture = createStarTexture();
         const radialTexture = createRadialTexture();
         const mwGroup = new THREE.Group();
-        // Angled to look like a band across the sky
+
         mwGroup.rotation.x = Math.PI / 3;
         mwGroup.rotation.z = Math.PI / 8;
 
-        // 1. DENSE CORE BAND (The "Spine")
-        const coreGeo = new THREE.BufferGeometry();
-        const coreCount = 80000;
-        const cPos = new Float32Array(coreCount * 3);
-        const cCol = new Float32Array(coreCount * 3);
+        const bandRadius = 45000000;
+        const baseBandWidth = 27000000;
+        const baseBandHeight = 5400000;
 
-        for (let i = 0; i < coreCount; i++) {
-            const r = 5000000 + Math.random() * 3000000;
+        // Function to create irregular bulges and condensed areas
+        const getBandIrregularity = (theta) => {
+            // Create bulges at specific positions
+            const bulge1 = Math.exp(-Math.pow((theta - 1.0) * 2, 2)) * 1.8;  // Bulge around theta=1
+            const bulge2 = Math.exp(-Math.pow((theta - 3.5) * 2, 2)) * 1.5;  // Bulge around theta=3.5
+            const bulge3 = Math.exp(-Math.pow((theta - 5.0) * 2, 2)) * 1.3;  // Bulge around theta=5
+
+            // Create condensed/narrow areas
+            const condense1 = Math.exp(-Math.pow((theta - 2.2) * 3, 2)) * -0.4;  // Narrow around theta=2.2
+            const condense2 = Math.exp(-Math.pow((theta - 4.5) * 3, 2)) * -0.3;  // Narrow around theta=4.5
+
+            // Add noise variation
+            const noise = Math.sin(theta * 5) * 0.15 + Math.sin(theta * 11) * 0.1 + Math.sin(theta * 17) * 0.05;
+
+            const widthMod = 1.0 + bulge1 + bulge2 + bulge3 + condense1 + condense2 + noise;
+            const heightMod = 1.0 + (bulge1 + bulge2 + bulge3) * 0.7 + noise * 0.5;
+            const densityMod = 1.0 + (bulge1 + bulge2 + bulge3) * 0.5 - (condense1 + condense2) * 0.3;
+
+            return { widthMod, heightMod, densityMod };
+        };
+
+        // ============================================
+        // LAYER 1: WARM ORANGE/BROWN CLOUD BASE
+        // ============================================
+        const warmGeo = new THREE.BufferGeometry();
+        const warmCount = 60000;
+        const wPos = new Float32Array(warmCount * 3);
+        const wCol = new Float32Array(warmCount * 3);
+
+        for (let i = 0; i < warmCount; i++) {
             const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 600000;
+            const irreg = getBandIrregularity(theta);
 
-            cPos[i * 3] = Math.cos(theta) * r;
-            cPos[i * 3 + 1] = y;
-            cPos[i * 3 + 2] = Math.sin(theta) * r;
+            // Apply irregular width and height
+            const localWidth = baseBandWidth * irreg.widthMod;
+            const localHeight = baseBandHeight * irreg.heightMod;
 
-            const c = new THREE.Color().setHSL(0.05 + Math.random() * 0.1, 0.9, 0.5 + Math.random() * 0.5);
-            cCol[i * 3] = c.r; cCol[i * 3 + 1] = c.g; cCol[i * 3 + 2] = c.b;
+            const r = bandRadius + (Math.random() - 0.5) * localWidth;
+            const h = (Math.random() - 0.5) * localHeight;
+
+            wPos[i * 3] = Math.cos(theta) * r;
+            wPos[i * 3 + 1] = h;
+            wPos[i * 3 + 2] = Math.sin(theta) * r;
+
+            // Opacity fade based on distance from center with NOISE for irregular feathering
+            const noise = (Math.sin(theta * 20) + Math.cos(theta * 43) * 0.5) * 0.2;
+            const distNorm = Math.abs(h / (localHeight * 0.5));
+            const fade = Math.pow(Math.max(0, 1.0 - distNorm + noise), 1.5);
+
+            const c = new THREE.Color();
+            const colorChoice = Math.random();
+            // Brighter in bulge areas
+            const brightBoost = (irreg.densityMod - 1.0) * 0.1;
+            if (colorChoice < 0.4) {
+                c.setHSL(0.06 + Math.random() * 0.04, 0.5 + Math.random() * 0.2, 0.15 + Math.random() * 0.1 + brightBoost);
+            } else if (colorChoice < 0.7) {
+                c.setHSL(0.1 + Math.random() * 0.03, 0.35 + Math.random() * 0.15, 0.2 + Math.random() * 0.1 + brightBoost);
+            } else {
+                c.setHSL(0.6 + Math.random() * 0.1, 0.2 + Math.random() * 0.1, 0.25 + Math.random() * 0.1 + brightBoost);
+            }
+            wCol[i * 3] = c.r * fade;
+            wCol[i * 3 + 1] = c.g * fade;
+            wCol[i * 3 + 2] = c.b * fade;
         }
-        coreGeo.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
-        coreGeo.setAttribute('color', new THREE.BufferAttribute(cCol, 3));
-        const coreMat = new THREE.PointsMaterial({
-            size: 18000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        mwGroup.add(new THREE.Points(coreGeo, coreMat));
 
-        // 2. WIDE SCATTERED LAYER (The "Haze") - MADE WIDER
-        const scatGeo = new THREE.BufferGeometry();
-        const scatCount = 80000;
-        const sPos = new Float32Array(scatCount * 3);
-        const sCol = new Float32Array(scatCount * 3);
+        warmGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3));
+        warmGeo.setAttribute('color', new THREE.BufferAttribute(wCol, 3));
+        mwGroup.add(new THREE.Points(warmGeo, new THREE.PointsMaterial({
+            size: 160000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending
+        })));
 
-        for (let i = 0; i < scatCount; i++) {
-            const r = 2000000 + Math.random() * 8000000;
-            const theta = Math.random() * Math.PI * 2;
-            // Extremely wide spread
-            const y = (Math.random() - 0.5) * 5000000;
-
-            sPos[i * 3] = Math.cos(theta) * r;
-            sPos[i * 3 + 1] = y;
-            sPos[i * 3 + 2] = Math.sin(theta) * r;
-
-            const c = new THREE.Color().setHSL(0.6 + Math.random() * 0.1, 0.4, 0.2 + Math.random() * 0.3);
-            sCol[i * 3] = c.r; sCol[i * 3 + 1] = c.g; sCol[i * 3 + 2] = c.b;
-        }
-        scatGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
-        scatGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
-        const scatMat = new THREE.PointsMaterial({
-            size: 25000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        mwGroup.add(new THREE.Points(scatGeo, scatMat));
-
-        // 3. GLOWING NEBULA CLOUDS (Dense & Bright)
+        // ============================================
+        // LAYER 2: PROMINENT DARK DUST LANES
+        // ============================================
         const dustGeo = new THREE.BufferGeometry();
-        const dustCount = 20000;
+        const dustCount = 25000;
         const dPos = new Float32Array(dustCount * 3);
         const dCol = new Float32Array(dustCount * 3);
 
         for (let i = 0; i < dustCount; i++) {
-            const r = 3000000 + Math.random() * 6000000;
             const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 2000000;
+            const irreg = getBandIrregularity(theta);
+            const localWidth = baseBandWidth * irreg.widthMod;
+            const localHeight = baseBandHeight * irreg.heightMod;
+
+            const wiggle1 = Math.sin(theta * 2.5) * localWidth * 0.25;
+            const wiggle2 = Math.sin(theta * 4 + 1.5) * localWidth * 0.15;
+            const wiggle3 = Math.sin(theta * 7) * localWidth * 0.08;
+            const r = bandRadius + wiggle1 + wiggle2 + wiggle3 + (Math.random() - 0.5) * localWidth * 0.2;
+            const h = (Math.random() - 0.5) * localHeight * 0.4;
 
             dPos[i * 3] = Math.cos(theta) * r;
-            dPos[i * 3 + 1] = y;
+            dPos[i * 3 + 1] = h;
             dPos[i * 3 + 2] = Math.sin(theta) * r;
 
-            // Purple and Orange Glows using noise
-            const patchNoise = Math.sin(theta * 3) * Math.cos(r * 0.000003);
             const c = new THREE.Color();
+            c.setHSL(0.05, 0.3, 0.01 + Math.random() * 0.02);
 
-            if (patchNoise > 0.3) {
-                // Deep Purple / Magenta Glow
-                c.setHSL(0.8 + Math.random() * 0.1, 0.9, 0.2);
-            } else if (patchNoise < -0.3) {
-                // Bright Orange Inner Glow
-                c.setHSL(0.08 + Math.random() * 0.05, 0.9, 0.2);
-            } else {
-                // Standard Blueish Haze
-                c.setHSL(0.6, 0.4, 0.05);
-            }
+            // Fade dust edges too with NOISE
+            const noise = (Math.sin(theta * 25) + Math.cos(theta * 37) * 0.5) * 0.15;
+            const distNorm = Math.abs(h / (localHeight * 0.4));
+            const fade = Math.pow(Math.max(0, 1.0 - distNorm + noise), 0.5); // Sharper fade for dust
 
-            dCol[i * 3] = c.r; dCol[i * 3 + 1] = c.g; dCol[i * 3 + 2] = c.b;
+            dCol[i * 3] = c.r * fade;
+            dCol[i * 3 + 1] = c.g * fade;
+            dCol[i * 3 + 2] = c.b * fade;
         }
+
         dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
         dustGeo.setAttribute('color', new THREE.BufferAttribute(dCol, 3));
-        const dustMat = new THREE.PointsMaterial({
-            size: 100000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        mwGroup.add(new THREE.Points(dustGeo, dustMat));
+        mwGroup.add(new THREE.Points(dustGeo, new THREE.PointsMaterial({
+            size: 2400000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.NormalBlending
+        })));
 
-        // 4. GLOWING BRIGHT STARS (New Layer)
-        const brightGeo = new THREE.BufferGeometry();
-        const brightCount = 2000;
-        const bPos = new Float32Array(brightCount * 3);
-        const bCol = new Float32Array(brightCount * 3);
+        // ============================================
+        // LAYER 3: BRIGHT STAR CLUSTERS
+        // ============================================
+        const clusterGeo = new THREE.BufferGeometry();
+        const clusterCount = 15000;
+        const cPos = new Float32Array(clusterCount * 3);
+        const cCol = new Float32Array(clusterCount * 3);
 
-        for (let i = 0; i < brightCount; i++) {
-            const r = 4000000 + Math.random() * 4000000;
-            const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 1000000;
-
-            bPos[i * 3] = Math.cos(theta) * r;
-            bPos[i * 3 + 1] = y;
-            bPos[i * 3 + 2] = Math.sin(theta) * r;
-
-            const c = new THREE.Color().setHSL(0.6 + Math.random() * 0.1, 1.0, 0.9); // Blue-White bright
-            if (Math.random() > 0.8) c.setHSL(0.1, 1.0, 0.8); // Occasional Red Giant
-
-            bCol[i * 3] = c.r; bCol[i * 3 + 1] = c.g; bCol[i * 3 + 2] = c.b;
+        const clusters = [];
+        for (let ci = 0; ci < 20; ci++) {
+            clusters.push({ theta: Math.random() * Math.PI * 2, size: 200000 + Math.random() * 400000 });
         }
-        brightGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
-        brightGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-        const brightMat = new THREE.PointsMaterial({
-            size: 40000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        mwGroup.add(new THREE.Points(brightGeo, brightMat));
+
+        for (let i = 0; i < clusterCount; i++) {
+            const cluster = clusters[i % clusters.length];
+            const theta = cluster.theta + (Math.random() - 0.5) * 0.5;
+            const irreg = getBandIrregularity(theta);
+            const localWidth = baseBandWidth * irreg.widthMod;
+            const localHeight = baseBandHeight * irreg.heightMod;
+
+            const spread = cluster.size * Math.pow(Math.random(), 0.5);
+            const angle = Math.random() * Math.PI * 2;
+            const baseR = bandRadius + (Math.random() - 0.5) * localWidth * 0.6;
+            const r = baseR + Math.cos(angle) * spread * 0.3;
+            const h = (Math.random() - 0.5) * localHeight * 0.5 + Math.sin(angle) * spread * 0.1;
+
+            cPos[i * 3] = Math.cos(theta) * r;
+            cPos[i * 3 + 1] = h;
+            cPos[i * 3 + 2] = Math.sin(theta) * r;
+
+            const c = new THREE.Color();
+            if (Math.random() < 0.6) {
+                c.setHSL(0.1, 0.1, 0.6 + Math.random() * 0.3);
+            } else {
+                c.setHSL(0.08, 0.4, 0.5 + Math.random() * 0.2);
+            }
+            cCol[i * 3] = c.r;
+            cCol[i * 3 + 1] = c.g;
+            cCol[i * 3 + 2] = c.b;
+        }
+
+        clusterGeo.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
+        clusterGeo.setAttribute('color', new THREE.BufferAttribute(cCol, 3));
+        mwGroup.add(new THREE.Points(clusterGeo, new THREE.PointsMaterial({
+            size: 30000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending
+        })));
+
+        // ============================================
+        // LAYER 4: FINE SCATTERED STARS
+        // ============================================
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 80000;
+        const sPos = new Float32Array(starCount * 3);
+        const sCol = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const irreg = getBandIrregularity(theta);
+            const localWidth = baseBandWidth * irreg.widthMod;
+            const localHeight = baseBandHeight * irreg.heightMod;
+
+            const r = bandRadius + (Math.random() - 0.5) * localWidth;
+            const h = (Math.random() - 0.5) * localHeight;
+
+            sPos[i * 3] = Math.cos(theta) * r;
+            sPos[i * 3 + 1] = h;
+            sPos[i * 3 + 2] = Math.sin(theta) * r;
+
+            const c = new THREE.Color();
+            if (Math.random() < 0.8) {
+                c.setHSL(0.1, 0.05, 0.4 + Math.random() * 0.2);
+            } else {
+                c.setHSL(0.08 + Math.random() * 0.1, 0.3, 0.35 + Math.random() * 0.15);
+            }
+
+            // Fade fine stars at edges with NOISE
+            const noise = (Math.sin(theta * 15) + Math.cos(theta * 29) * 0.5) * 0.25;
+            const distNorm = Math.abs(h / (localHeight * 0.5));
+            const fade = Math.pow(Math.max(0, 1.0 - distNorm + noise), 2.0);
+
+            sCol[i * 3] = c.r * fade;
+            sCol[i * 3 + 1] = c.g * fade;
+            sCol[i * 3 + 2] = c.b * fade;
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+        mwGroup.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+            size: 16000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending
+        })));
+
+        // ============================================
+        // LAYER 5: SOFT DIFFUSE OUTER GLOW
+        // ============================================
+        const glowGeo = new THREE.BufferGeometry();
+        const glowCount = 20000;
+        const gPos = new Float32Array(glowCount * 3);
+        const gCol = new Float32Array(glowCount * 3);
+
+        for (let i = 0; i < glowCount; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const irreg = getBandIrregularity(theta);
+            const localWidth = baseBandWidth * irreg.widthMod;
+            const localHeight = baseBandHeight * irreg.heightMod;
+
+            const r = bandRadius + (Math.random() - 0.5) * localWidth * 1.3;
+            const h = (Math.random() - 0.5) * localHeight * 1.5;
+
+            gPos[i * 3] = Math.cos(theta) * r;
+            gPos[i * 3 + 1] = h;
+            gPos[i * 3 + 2] = Math.sin(theta) * r;
+
+            const c = new THREE.Color();
+            c.setHSL(0.6 + Math.random() * 0.1, 0.15, 0.15 + Math.random() * 0.1);
+
+            // Soft fade for glow with NOISE
+            const noise = (Math.sin(theta * 10) + Math.cos(theta * 20) * 0.5) * 0.3;
+            const distNorm = Math.abs(h / (localHeight * 1.5));
+            const fade = Math.pow(Math.max(0, 1.0 - distNorm + noise), 1.0);
+
+            gCol[i * 3] = c.r * fade;
+            gCol[i * 3 + 1] = c.g * fade;
+            gCol[i * 3 + 2] = c.b * fade;
+        }
+
+        glowGeo.setAttribute('position', new THREE.BufferAttribute(gPos, 3));
+        glowGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
+        mwGroup.add(new THREE.Points(glowGeo, new THREE.PointsMaterial({
+            size: 200000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending
+        })));
+
+        // ============================================
+        // LAYER 6: PURPLE/WHITE NEBULA CLOUDS BEHIND BAND
+        // ============================================
+        const nebulaGeo = new THREE.BufferGeometry();
+        const nebulaCount = 15000;
+        const nPos = new Float32Array(nebulaCount * 3);
+        const nCol = new Float32Array(nebulaCount * 3);
+
+        for (let i = 0; i < nebulaCount; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const irreg = getBandIrregularity(theta);
+            const localWidth = baseBandWidth * irreg.widthMod * 1.5;
+            const localHeight = baseBandHeight * irreg.heightMod * 2.0;
+
+            const r = bandRadius + (Math.random() - 0.5) * localWidth;
+            // Positioned behind the main band (offset in Y)
+            const h = (Math.random() - 0.5) * localHeight + (Math.random() > 0.5 ? localHeight * 0.7 : -localHeight * 0.7);
+
+            nPos[i * 3] = Math.cos(theta) * r;
+            nPos[i * 3 + 1] = h;
+            nPos[i * 3 + 2] = Math.sin(theta) * r;
+
+            // Purple and white/blue colors
+            const c = new THREE.Color();
+            const colorChoice = Math.random();
+            if (colorChoice < 0.5) {
+                c.setHSL(0.75 + Math.random() * 0.1, 0.4 + Math.random() * 0.2, 0.2 + Math.random() * 0.15); // Purple
+            } else {
+                c.setHSL(0.6 + Math.random() * 0.1, 0.2 + Math.random() * 0.1, 0.25 + Math.random() * 0.15); // Blue-white
+            }
+
+            // Fade nebula edges with NOISE
+            const noise = (Math.sin(theta * 12) + Math.cos(theta * 24) * 0.5) * 0.2;
+            const distNorm = Math.abs(h / (localHeight * 2.0));
+            const fade = Math.pow(Math.max(0, 1.0 - distNorm + noise), 1.2);
+
+            nCol[i * 3] = c.r * fade;
+            nCol[i * 3 + 1] = c.g * fade;
+            nCol[i * 3 + 2] = c.b * fade;
+        }
+
+        nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nPos, 3));
+        nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nCol, 3));
+        mwGroup.add(new THREE.Points(nebulaGeo, new THREE.PointsMaterial({
+            size: 400000, map: radialTexture, vertexColors: true, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending
+        })));
 
         this.scene.add(mwGroup);
     }
@@ -533,7 +826,8 @@ export class SpaceEngine {
     }
 
     initBlackHole() {
-        const bhPos = new THREE.Vector3(-5000000, 1000000, 5000000);
+        // Positioned outside the enlarged Milky Way band
+        const bhPos = new THREE.Vector3(-200000000, 50000000, 200000000);
         const bhGroup = new THREE.Group();
         bhGroup.position.copy(bhPos);
         this.scene.add(bhGroup);
@@ -574,8 +868,8 @@ export class SpaceEngine {
                 f = f * f * (3.0 - 2.0 * f);
                 return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
                             mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                        mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                            mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+            mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                            mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.z);
             }
 
             float fbm(vec3 p) {
@@ -743,7 +1037,12 @@ export class SpaceEngine {
 
         for (let i = 0; i < starsCount; i++) {
             // Randomly distributed far away stars (background/nearby systems)
-            const r = 200000 + Math.random() * 800000; // Spread out from 200k to 1M scale
+            // Positioned outside the enlarged Milky Way band (radius 45M)
+            const r = 100000000 + Math.random() * 400000000; // 100M to 500M scale
+
+            // Check if too close to black hole or crab nebula
+            // Simple check: if r < 250M and in that octant... skipped for simplicity.
+
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
 
@@ -759,18 +1058,88 @@ export class SpaceEngine {
             const c = new THREE.Color().setHSL(Math.random(), 0.8, 0.8);
             sCol[i * 3] = c.r; sCol[i * 3 + 1] = c.g; sCol[i * 3 + 2] = c.b;
 
-            sSize[i] = Math.random() * 3000 + 1000;
+            sSize[i] = Math.random() * 500000 + 200000; // Larger for visibility
         }
 
         starsGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
         starsGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
 
         const starsMat = new THREE.PointsMaterial({
-            size: 2000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending
+            size: 300000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending
         });
 
         const starSystems = new THREE.Points(starsGeo, starsMat);
         this.scene.add(starSystems);
+
+        // Named Star Systems - visible and targetable
+        this.alienSystems = [];
+        const namedStars = [
+            { name: "PROXIMA CENTAURI", pos: [50000000, 5000000, -30000000], color: 0xff4400, size: 2000000 },
+            { name: "ALPHA CENTAURI", pos: [55000000, 8000000, -35000000], color: 0xffaa00, size: 2500000 },
+            { name: "VEGA", pos: [-80000000, 40000000, 60000000], color: 0xaaddff, size: 4000000 },
+            { name: "KEPLER-442", pos: [200000000, -30000000, 150000000], color: 0xffcc00, size: 2500000 },
+            { name: "KEPLER-186", pos: [-180000000, 50000000, -200000000], color: 0xff8800, size: 2000000 },
+            { name: "TRAPPIST-1", pos: [120000000, -60000000, -100000000], color: 0xff3300, size: 1500000 },
+            { name: "TAU CETI", pos: [-60000000, 20000000, 80000000], color: 0xffdd66, size: 2500000 },
+            { name: "BARNARD'S STAR", pos: [40000000, -15000000, 50000000], color: 0xff5500, size: 1800000 },
+            { name: "WOLF 359", pos: [-35000000, 10000000, -25000000], color: 0xff2200, size: 1200000 },
+            { name: "SIRIUS", pos: [-100000000, 30000000, -80000000], color: 0xffffff, size: 5000000 },
+            { name: "BETELGEUSE", pos: [300000000, 100000000, -250000000], color: 0xff4400, size: 8000000 },
+            { name: "RIGEL", pos: [-350000000, -80000000, 280000000], color: 0x88bbff, size: 7000000 },
+            { name: "ZARMANIA", pos: [400000000, 150000000, 350000000], color: 0xff00ff, size: 3000000 },
+            { name: "POLARIS", pos: [0, 500000000, 100000000], color: 0xffffcc, size: 6000000 },
+            { name: "ARCTURUS", pos: [-250000000, 120000000, 180000000], color: 0xffaa44, size: 6500000 }
+        ];
+
+        for (const star of namedStars) {
+            const starSprite = createStarSystem(star.name, star.pos, star.size, star.color, starTexture);
+            this.scene.add(starSprite);
+            this.alienSystems.push(starSprite);
+            this.planetMeshes.push(starSprite); // Make targetable
+        }
+
+        // Crab Nebula
+        const crabPos = new THREE.Vector3(300000000, -80000000, -250000000);
+        const crabNebula = createCrabNebula(crabPos, 15000000); // 15M Size
+        this.scene.add(crabNebula);
+        this.planetMeshes.push(crabNebula);
+    }
+
+    initCruiseEffect() {
+        // COSMIC DUST STREAKS - Warp speed effect
+        this.cruiseGroup = new THREE.Group();
+        this.scene.add(this.cruiseGroup);
+
+        // Use thin lines or stretched particles for streaks
+        // Since WebGL lines can be thin, we'll use stretched points (sprites)
+        const streakGeo = new THREE.BufferGeometry();
+        const streakCount = 12000; // Massive count for "volume"
+        const stPos = new Float32Array(streakCount * 3);
+
+        // Create a tunnel volume around camera
+        for (let i = 0; i < streakCount; i++) {
+            const range = 5000;
+            stPos[i * 3] = (Math.random() - 0.5) * range;
+            stPos[i * 3 + 1] = (Math.random() - 0.5) * range;
+            stPos[i * 3 + 2] = -Math.random() * 15000; // Deep field in front
+        }
+
+        streakGeo.setAttribute('position', new THREE.BufferAttribute(stPos, 3));
+
+        const streakMat = new THREE.PointsMaterial({
+            size: 60,
+            color: 0x88ccff,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            sizeAttenuation: true
+        });
+
+        this.cruiseStreaks = new THREE.Points(streakGeo, streakMat);
+        this.cruiseGroup.add(this.cruiseStreaks);
+
+        this.cruiseState = { shakeOffset: new THREE.Vector3(), active: false };
     }
 
     initInput() {
@@ -877,6 +1246,78 @@ export class SpaceEngine {
             this.dustSystem.position.x = Math.floor(this.camera.position.x / range) * range;
             this.dustSystem.position.y = Math.floor(this.camera.position.y / range) * range;
             this.dustSystem.position.z = Math.floor(this.camera.position.z / range) * range;
+        }
+
+        // Star Backdrop follows camera for endless stars
+        if (this.starBackdrop) {
+            this.starBackdrop.position.copy(this.camera.position);
+        }
+
+        // Cruise Effect - star streaks and camera shake at high speed
+        if (this.cruiseGroup && this.cruiseStreaks) {
+            const speedRatio = Math.abs(this.state.speed) / 500000000; // Adjusted for higher speeds
+            const cruiseActive = speedRatio > 0.05;
+
+            // Position cruise group in front of camera
+            this.cruiseGroup.position.copy(this.camera.position);
+            this.cruiseGroup.quaternion.copy(this.camera.quaternion);
+
+            // Star streak visibility
+            // We want streaks to be visible even at "low" warp
+            const opacity = Math.min(Math.pow(speedRatio, 0.5), 0.8);
+            this.cruiseStreaks.material.opacity = opacity;
+
+            // Stretch streaks based on speed (simple scaling Z)
+            // Logic: High speed = Long streaks
+            const stretch = 1.0 + speedRatio * 20.0;
+            // Since we can't easily scale individual points in Z in a basic Points material cleanly without shader...
+            // We rely on "motion blur" feel from the high quantity + opacity + additive blending moving past.
+            // But we CAN scale the whole group in Z? No, that scales distance between them.
+            // Actually, simply moving them fast towards camera acts as streaks if FPS is high.
+
+            // To animate the "dust" rushing:
+            const positions = this.cruiseStreaks.geometry.attributes.position.array;
+            const moveSpeed = this.state.speed * delta * 0.000005; // Relative dust speed
+            // Just simulate flow.
+            // Actually, easier: Just scale opacity. The movement is handled by camera moving through static scene?
+            // No, cruise streaks are parented to scene? No, parented to camera...
+            // If parented to camera, they must MOVE towards camera manually.
+
+            // Animate dust particles rushing towards camera (-Z direction is forward)
+            // But since camera moves forward, dust should move BACKWARD (+Z).
+            // Speed is relative.
+            const dustSpeed = 50000 * (speedRatio + 0.1);
+
+            for (let i = 0; i < positions.length / 3; i++) {
+                // Move towards +Z (past camera)
+                positions[i * 3 + 2] += dustSpeed * delta * 60;
+
+                // Reset if behind camera
+                if (positions[i * 3 + 2] > 500) {
+                    positions[i * 3 + 2] = -15000;
+                    // Randomize XY slightly for variety
+                    positions[i * 3] = (Math.random() - 0.5) * 5000;
+                    positions[i * 3 + 1] = (Math.random() - 0.5) * 5000;
+                }
+            }
+            this.cruiseStreaks.geometry.attributes.position.needsUpdate = true;
+
+            // Scale points based on speed
+            // this.cruiseStreaks.material.size = 60 + speedRatio * 100;
+
+            // Camera shake at high speeds
+            if (cruiseActive) {
+                const shakeIntensity = Math.min(speedRatio * 50, 200);
+                this.camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+                this.camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+            }
+        }
+
+        // Alien Systems Blinking (Beacon style)
+        if (this.alienSystems) {
+            this.alienSystems.forEach(alien => {
+                updateStarSystem(alien, delta);
+            });
         }
 
         // Galaxy Spin

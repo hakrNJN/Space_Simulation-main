@@ -1,3 +1,5 @@
+// Galaxy and Milky Way creation functions
+
 export function createGalaxy(scene, starTexture) {
     const galGroup = new THREE.Group();
     galGroup.position.set(3000000, 1500000, -4000000);
@@ -36,7 +38,6 @@ export function createGalaxy(scene, starTexture) {
     });
     galGroup.add(new THREE.Points(starGeo, starMat));
 
-    // Gas & Dust
     const dustGeo = new THREE.BufferGeometry();
     const dustCount = 20000;
     const dPos = new Float32Array(dustCount * 3);
@@ -75,38 +76,7 @@ export function createGalaxy(scene, starTexture) {
     scene.add(galGroup);
 }
 
+// Milky Way band - REMOVED
 export function createMilkyWay(scene, starTexture) {
-    const mwGroup = new THREE.Group();
-    mwGroup.rotation.x = Math.PI / 3;
-    mwGroup.rotation.z = Math.PI / 8;
-
-    const mwGeo = new THREE.BufferGeometry();
-    const mwCount = 40000;
-    const pos = new Float32Array(mwCount * 3);
-    const col = new Float32Array(mwCount * 3);
-
-    for (let i = 0; i < mwCount; i++) {
-        const i3 = i * 3;
-        const r = 4000000 + Math.random() * 500000;
-        const theta = Math.random() * Math.PI * 2;
-        const heightBias = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
-
-        pos[i3] = Math.cos(theta) * r;
-        pos[i3 + 1] = heightBias * 400000;
-        pos[i3 + 2] = Math.sin(theta) * r;
-
-        const color = new THREE.Color();
-        if (Math.random() > 0.8) color.setHSL(0.08, 0.8, 0.7);
-        else color.setHSL(0.6, 0.1, 0.9);
-
-        col[i3] = color.r; col[i3 + 1] = color.g; col[i3 + 2] = color.b;
-    }
-
-    mwGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    mwGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const mwMat = new THREE.PointsMaterial({
-        size: 5000, map: starTexture, vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending
-    });
-    mwGroup.add(new THREE.Points(mwGeo, mwMat));
-    scene.add(mwGroup);
+    // Empty - Milky Way band removed
 }
