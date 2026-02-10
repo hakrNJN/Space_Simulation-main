@@ -48,8 +48,8 @@ export class SagittariusAStar extends BaseSystem {
             #define BH_RADIUS 1.5
             #define EVENT_HORIZON_FADE 1.55 
             #define DISK_INNER 2.6
-            #define DISK_OUTER 14.0
-            #define DISK_HEIGHT 0.15
+            #define DISK_OUTER 16.8
+            #define DISK_HEIGHT 0.25
             
             // --- Noise Functions ---
             float hash(vec3 p) {
@@ -107,7 +107,7 @@ export class SagittariusAStar extends BaseSystem {
                 vec3 colorHigh = vec3(1.0, 0.92, 0.85);
                 vec3 col = mix(colorLow, colorMid, smoothstep(0.0, 0.35, temp));
                 col = mix(col, colorHigh, smoothstep(0.35, 1.0, temp));
-                return col * intensity * 12.0; 
+                return col * intensity * 18.0;
             }
 
             void main() {
@@ -135,7 +135,7 @@ export class SagittariusAStar extends BaseSystem {
                     closestDistToBH = min(closestDistToBH, distToCenter);
                     
                     // Gravitational Lensing
-                    float bendStrength = 0.15; 
+                    float bendStrength = 0.45; // 3x lensing for stronger pull
                     vec3 toCenter = normalize(-pos);
                     float grav = bendStrength / (distToCenter * distToCenter + 0.01); 
                     dir = normalize(dir + toCenter * grav);
@@ -157,18 +157,22 @@ export class SagittariusAStar extends BaseSystem {
                         float rotSpeed = 5.0 / (distToCenter + 0.1);
                         float animAngle = angle + iTime * rotSpeed;
                         
-                        vec3 noisePos = vec3(cos(animAngle)*distToCenter, sin(animAngle)*distToCenter, pos.y * 1.5);
-                        float dens = fbm(noisePos * 0.9);
+                        // Clean smooth disk - no noise, pure radial gradient
+                        float dens = radialFade; // Smooth gradient, no noise
                         
-                        float rocks = voronoi(noisePos * 2.5 + 10.0);
-                        float rockSolid = smoothstep(0.7, 0.9, rocks); 
+                        // Rocks orbit around the black hole - visible rotation
+                        float rockOrbitSpeed = 4.0 / (distToCenter + 0.3);
+                        float rockAngle = angle + iTime * rockOrbitSpeed * 6.0; // 6x orbital speed
+                        vec3 rockPos = vec3(cos(rockAngle)*distToCenter, sin(rockAngle)*distToCenter, pos.y * 2.0);
+                        float rocks = voronoi(rockPos * 2.0 + 10.0); // Slightly larger rocks
+                        float rockSolid = smoothstep(0.65, 0.85, rocks); // More visible
                         
-                        float rockStart = DISK_INNER + 2.5; 
-                        float rockFade = smoothstep(rockStart, rockStart + 3.0, distToCenter);
+                        float rockStart = DISK_INNER + 1.5; // Rocks start closer to center
+                        float rockFade = smoothstep(rockStart, rockStart + 2.0, distToCenter);
                         rockSolid *= rockFade;
 
                         float verticalFade = exp(-pow(distToPlane / (DISK_HEIGHT), 2.0));
-                        float intensity = dens * radialFade * verticalFade;
+                        float intensity = dens * verticalFade;
                         
                         if (intensity > 0.001 || rockSolid > 0.1) {
                             vec3 diskVel = normalize(vec3(-pos.z, 0.0, pos.x));
@@ -188,8 +192,8 @@ export class SagittariusAStar extends BaseSystem {
                             
                             particleCol *= beam;
                             
-                            float absorption = 0.18 * intensity;
-                            col += particleCol * absorption * (2.0 - length(col) * 0.4);
+                            float absorption = 0.35 * intensity; // Denser disk
+                            col += particleCol * absorption * (2.5 - length(col) * 0.3);
                             accumulatedAlpha += absorption;
                         }
                     }
@@ -220,22 +224,22 @@ export class SagittariusAStar extends BaseSystem {
                 float ringWidth = 0.18;
                 if (!hitBH && closestDistToBH < BH_RADIUS + ringWidth) {
                     float ringIntensity = 1.0 - smoothstep(BH_RADIUS, BH_RADIUS + ringWidth, closestDistToBH);
-                    col += vec3(1.0, 0.95, 0.8) * pow(ringIntensity, 3.0) * 7.0;
+                    col += vec3(1.0, 0.95, 0.8) * pow(ringIntensity, 3.0) * 15.0; // Brighter ring
                 }
 
                 // Inner edge warm glow
                 if (!hitBH && closestDistToBH < BH_RADIUS + 0.5) {
                     float edgeGlow = 1.0 - smoothstep(BH_RADIUS, BH_RADIUS + 0.5, closestDistToBH);
-                    col += vec3(1.0, 0.7, 0.3) * edgeGlow * 3.0;
+                    col += vec3(1.0, 0.7, 0.3) * edgeGlow * 8.0; // Brighter edge
                 }
 
                 // Glow
                 vec3 glowColor = vec3(1.0, 0.6, 0.2); 
-                float glowStrength = hitBH ? 0.0 : 0.8 / (closestDistToBH - BH_RADIUS + 0.3);
-                col += glowColor * glowStrength * 0.8;
+                float glowStrength = hitBH ? 0.0 : 1.8 / (closestDistToBH - BH_RADIUS + 0.3); // Stronger glow
+                col += glowColor * glowStrength * 1.2;
 
                 // Tone Mapping (ACES)
-                col *= 2.5; 
+                col *= 4.0; // Higher exposure
                 const float a = 2.51;
                 const float b = 0.03;
                 const float c = 2.43;

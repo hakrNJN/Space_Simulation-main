@@ -20,8 +20,10 @@ export class SpaceEngine {
             friction: 0.95,
             turnSpeedMax: 1.5,
             dragSensitivity: 0.003,
-            maxSpeed: 1000000, // Reduced further (was 5M)
-            acceleration: 10000 // Reduced further (was 50k)
+            maxSpeed: 1000000,
+            acceleration: 10000,
+            steerSmoothing: 0.12, // Exponential smoothing factor (lower = smoother)
+            steerSensitivity: 0.0015 // Reduced for finer control
         };
 
         // State
@@ -44,7 +46,10 @@ export class SpaceEngine {
             lastDragY: 0,
             // Rotational velocity (for momentum)
             rotVelocityX: 0,
-            rotVelocityY: 0
+            rotVelocityY: 0,
+            // Smoothed steering targets
+            targetRotX: 0,
+            targetRotY: 0
         };
 
         // THREE Objects
@@ -336,23 +341,37 @@ export class SpaceEngine {
         }
         this.state.speed = Math.max(-this.config.maxSpeed, Math.min(this.config.maxSpeed, this.state.speed));
 
-        // =========== DRAG-BASED STEERING ===========
+        // =========== SMOOTH DRAG-BASED STEERING ===========
         if (this.state.isDragging) {
-            // Convert drag delta to rotational velocity
-            this.state.rotVelocityY += this.state.dragDeltaX * this.config.dragSensitivity;
-            this.state.rotVelocityX += this.state.dragDeltaY * this.config.dragSensitivity;
+            // Sensitivity curve: gentle for small drags, accelerated for big sweeps
+            const dx = this.state.dragDeltaX;
+            const dy = this.state.dragDeltaY;
+            const dragMagnitude = Math.sqrt(dx * dx + dy * dy);
+            const curve = 1.0 + dragMagnitude * 0.02; // Accelerating sensitivity
+
+            this.state.targetRotY += dx * this.config.steerSensitivity * curve;
+            this.state.targetRotX += dy * this.config.steerSensitivity * curve;
 
             // Reset drag delta after processing
             this.state.dragDeltaX = 0;
             this.state.dragDeltaY = 0;
+        } else {
+            // Decay targets when not dragging (smooth stop)
+            this.state.targetRotX *= 0.85;
+            this.state.targetRotY *= 0.85;
         }
 
-        // Apply friction to rotational velocity (momentum effect)
-        this.state.rotVelocityX *= 0.9;
-        this.state.rotVelocityY *= 0.9;
+        // Exponential smoothing: lerp velocity toward target
+        const smooth = this.config.steerSmoothing;
+        this.state.rotVelocityX += (this.state.targetRotX - this.state.rotVelocityX) * smooth;
+        this.state.rotVelocityY += (this.state.targetRotY - this.state.rotVelocityY) * smooth;
+
+        // Momentum friction
+        this.state.targetRotX *= 0.92;
+        this.state.targetRotY *= 0.92;
 
         // Apply rotation (quaternion-based)
-        if (Math.abs(this.state.rotVelocityX) > 0.0001 || Math.abs(this.state.rotVelocityY) > 0.0001) {
+        if (Math.abs(this.state.rotVelocityX) > 0.00005 || Math.abs(this.state.rotVelocityY) > 0.00005) {
             const pitchRate = -this.state.rotVelocityX;
             const yawRate = -this.state.rotVelocityY;
 

@@ -333,9 +333,9 @@ export class MilkyWayBand extends BaseSystem {
         const colors = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-            // Gap 300,000 (User Request)
-            // Spread into large area up to 750k (Filling inner galaxy)
-            const r = 300000 + Math.pow(Math.random(), 1.5) * 450000;
+            // Gap 450k (1.5x push outward)
+            // Spread into large area up to 1125k
+            const r = 450000 + Math.pow(Math.random(), 1.5) * 675000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
 
@@ -378,8 +378,8 @@ export class MilkyWayBand extends BaseSystem {
         const colors = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-            // Same region as core stars: 300k - 750k
-            const r = 300000 + Math.random() * 450000;
+            // Pushed 2.5x away from BH: 1500k - 2250k
+            const r = 1500000 + Math.random() * 750000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
 
