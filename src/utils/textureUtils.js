@@ -40,6 +40,10 @@ export function createNoiseTexture(type, color1, color2) {
     return new THREE.CanvasTexture(canvas);
 }
 
+/**
+ * Creates a soft radial gradient texture (ROUND particle)
+ * Used for nebula, glow effects, etc.
+ */
 export function createRadialTexture() {
     const size = 128;
     const canvas = document.createElement('canvas');
@@ -60,15 +64,88 @@ export function createRadialTexture() {
     return new THREE.CanvasTexture(canvas);
 }
 
+/**
+ * Creates a soft star texture (ROUND with glow)
+ * Used for stars and bright points
+ */
 export function createStarTexture() {
+    const size = 64;
     const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grad.addColorStop(0, 'white');
-    grad.addColorStop(0.4, 'rgba(255,255,255,0.8)');
-    grad.addColorStop(1, 'transparent');
+    const center = size / 2;
+
+    // Create perfectly round gradient
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.3, 'rgba(255, 255, 255, 0.9)');
+    grad.addColorStop(0.6, 'rgba(255, 255, 255, 0.3)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillRect(0, 0, size, size);
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+/**
+ * Creates a soft dust particle texture (ROUND, subtle)
+ * Used for interstellar dust, very faint
+ */
+export function createDustTexture() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const center = size / 2;
+
+    // Soft, fuzzy edge for dust
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
+    grad.addColorStop(0, 'rgba(180, 160, 140, 0.6)');
+    grad.addColorStop(0.4, 'rgba(120, 100, 80, 0.3)');
+    grad.addColorStop(0.8, 'rgba(60, 50, 40, 0.1)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+/**
+ * Creates an irregular blob texture (organic looking)
+ * Used for nebula gas, non-circular shapes
+ */
+export function createIrregularTexture() {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const center = size / 2;
+
+    // Draw multiple overlapping circles for irregular shape
+    ctx.globalAlpha = 0.4;
+    for (let i = 0; i < 5; i++) {
+        const offsetX = (Math.random() - 0.5) * 30;
+        const offsetY = (Math.random() - 0.5) * 30;
+        const radius = 20 + Math.random() * 25;
+
+        const grad = ctx.createRadialGradient(
+            center + offsetX, center + offsetY, 0,
+            center + offsetX, center + offsetY, radius
+        );
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+        grad.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(center + offsetX, center + offsetY, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     return new THREE.CanvasTexture(canvas);
 }

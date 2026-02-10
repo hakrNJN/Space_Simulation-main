@@ -398,3 +398,99 @@ body {
         border-left: none;
     }
 }
+
+/* ========================================
+   RADAR DISPLAY STYLES
+   ======================================== */
+
+.radar-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.radar-title {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.radar-display .radar-grid {
+    width: 80px;
+    height: 80px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 50%;
+    position: relative;
+    background: 
+        radial-gradient(circle, rgba(0, 40, 60, 0.3) 0%, transparent 70%),
+        linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 0, 0, 0.5),
+        0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.radar-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #fff;
+    z-index: 5;
+}
+
+.radar-display .radar-blip {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: var(--hud-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--hud-primary);
+    transform: translate(-50%, -50%);
+    animation: blip-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes blip-pulse {
+    0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.8); }
+}
+
+.radar-systems-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    max-width: 120px;
+}
+
+.radar-system-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    padding: 2px 4px;
+    background: rgba(0, 240, 255, 0.05);
+    border-left: 2px solid var(--hud-primary);
+}
+
+.radar-system-item .system-name {
+    color: var(--hud-primary);
+    font-family: 'Share Tech Mono';
+    letter-spacing: 0.5px;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.radar-system-item .system-dist {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Share Tech Mono';
+}

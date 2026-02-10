@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 import { SpaceEngine } from '../game/SpaceEngine';
 
 const CockpitUI = () => {
@@ -7,29 +8,16 @@ const CockpitUI = () => {
     const [hudData, setHudData] = useState({
         speed: 0,
         coords: { x: 0, y: 0, z: 0 },
-        targetName: 'None',
+        targetName: 'SOLAR',
         targetDist: 0,
-        heading: 0
+        heading: 0,
+        nearbySystems: []
     });
 
     useEffect(() => {
         if (!mountRef.current) return;
 
         engineRef.current = new SpaceEngine(mountRef.current, (data) => {
-            // Update HUD state efficiently (throttle if needed)
-            // For now, simpler direct update
-
-            // Find nearest
-            let nearestDist = Infinity;
-            let nearestName = 'SOLAR';
-            data.planets.forEach(p => {
-                const d = data.position.distanceTo(p.position);
-                if (d < nearestDist) {
-                    nearestDist = d;
-                    nearestName = p.userData.name;
-                }
-            });
-
             setHudData({
                 speed: Math.abs(data.speed).toFixed(0),
                 coords: {
@@ -37,22 +25,21 @@ const CockpitUI = () => {
                     y: data.position.y.toFixed(0),
                     z: data.position.z.toFixed(0)
                 },
-                targetName: nearestName,
-                targetDist: (nearestDist / 1000).toFixed(2),
-                heading: THREE.MathUtils.radToDeg(data.rotation.y)
+                targetName: data.nearestSystem || 'VOID',
+                targetDist: (data.nearestDistance / 1000).toFixed(1),
+                heading: data.heading || 0,
+                nearbySystems: data.nearbySystems || []
             });
         });
 
-        const handleResize = () => engineRef.current.handleResize();
-        window.addEventListener('resize', handleResize);
-
         return () => {
-            window.removeEventListener('resize', handleResize);
-            engineRef.current.cleanup();
+            if (engineRef.current) {
+                engineRef.current.cleanup();
+            }
         };
     }, []);
 
-    // Compass Tape Style
+    // Compass heading offset
     const heading = (hudData.heading % 360 + 360) % 360;
     const tapeOffset = heading * 8;
 
@@ -61,16 +48,17 @@ const CockpitUI = () => {
             <div id="canvas-container" ref={mountRef}></div>
 
             <div className="controls-hint">
-                MOUSE: Look/Steer<br />
+                DRAG: Look/Steer<br />
                 W: Warp Drive<br />
-                S: Brake
+                S: Brake<br />
+                SHIFT: Boost (10x)
             </div>
 
             <div id="cockpit-ui">
+                {/* Top Compass Bar */}
                 <div className="top-bar">
                     <div className="compass-container">
                         <div className="compass-tape" style={{ transform: `translateX(-${tapeOffset}px)` }}>
-                            {/* Static Tape Generation */}
                             {Array.from({ length: 72 }).map((_, i) => {
                                 const deg = i * 5;
                                 const isMajor = deg % 45 === 0;
@@ -80,7 +68,6 @@ const CockpitUI = () => {
                                     </div>
                                 );
                             })}
-                            {/* Duplicate for loop */}
                             {Array.from({ length: 72 }).map((_, i) => {
                                 const deg = i * 5;
                                 const isMajor = deg % 45 === 0;
@@ -93,11 +80,15 @@ const CockpitUI = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Center Reticle */}
                 <div className="reticle"></div>
 
+                {/* Bottom Dashboard */}
                 <div className="dashboard-container">
                     <div className="dashboard-glass">
 
+                        {/* Left Panel - Coordinates */}
                         <div className="screen-section screen-left">
                             <div className="data-row">
                                 <div className="label">COORDS</div>
@@ -109,19 +100,53 @@ const CockpitUI = () => {
                             </div>
                         </div>
 
+                        {/* Center Panel - Radar */}
                         <div className="screen-section screen-center">
-                            {/* Radar Placeholder */}
-                            <div className="label" style={{ opacity: 0.5 }}>RADAR ONLINE</div>
+                            <div className="radar-display">
+                                <div className="radar-title">SYSTEM RADAR</div>
+                                <div className="radar-grid">
+                                    {/* Center dot (you) */}
+                                    <div className="radar-center"></div>
+                                    {/* Nearby system blips */}
+                                    {hudData.nearbySystems.slice(0, 5).map((sys, i) => {
+                                        // Calculate relative position on radar
+                                        const maxRange = 300000;
+                                        const scale = 35; // Radar radius in px
+                                        const relX = (sys.position.x / maxRange) * scale;
+                                        const relZ = (sys.position.z / maxRange) * scale;
+                                        return (
+                                            <div
+                                                key={sys.name}
+                                                className="radar-blip"
+                                                style={{
+                                                    left: `calc(50% + ${Math.max(-35, Math.min(35, relX))}px)`,
+                                                    top: `calc(50% + ${Math.max(-35, Math.min(35, relZ))}px)`
+                                                }}
+                                                title={`${sys.name}: ${(sys.distance / 1000).toFixed(0)}km`}
+                                            ></div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="radar-systems-list">
+                                    {hudData.nearbySystems.slice(0, 3).map(sys => (
+                                        <div key={sys.name} className="radar-system-item">
+                                            <span className="system-name">{sys.name}</span>
+                                            <span className="system-dist">{(sys.distance / 1000).toFixed(0)} km</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
+                        {/* Right Panel - Target & Speed */}
                         <div className="screen-section screen-right">
                             <div className="data-row" style={{ justifyContent: 'flex-end' }}>
-                                <div className="data-value" style={{ color: '#fff' }}>{hudData.targetName}</div>
-                                <div className="label">TARGET</div>
+                                <div className="data-value" style={{ color: '#0ff' }}>{hudData.targetName}</div>
+                                <div className="label">NEAREST</div>
                             </div>
                             <div className="data-row" style={{ justifyContent: 'flex-end' }}>
                                 <div className="data-value">{hudData.targetDist}</div>
-                                <div className="unit">AU</div>
+                                <div className="unit">KM</div>
                             </div>
                             <div className="data-row" style={{ justifyContent: 'flex-end' }}>
                                 <div className="data-value data-big">{hudData.speed}</div>
@@ -137,4 +162,3 @@ const CockpitUI = () => {
 };
 
 export default CockpitUI;
-import * as THREE from 'three'; // Import for MathUtils access
