@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
 
 /**
  * Sagittarius A* — Supermassive Black Hole at the Milky Way's center
@@ -14,6 +14,11 @@ import { SYSTEM_POSITIONS } from './index.js';
 export class SagittariusAStar extends BaseSystem {
     constructor() {
         super('SAGITTARIUS A*', SYSTEM_POSITIONS.SGR_A_STAR);
+
+        // Align to Milky Way Plane (Pitch: 18 deg, Roll: ~12 deg)
+        // Align to Milky Way Plane (Flat)
+        this.group.rotation.x = 0;
+        this.group.rotation.z = 0;
     }
 
     build(textures) {
@@ -240,7 +245,13 @@ export class SagittariusAStar extends BaseSystem {
                 
                 col = pow(col, vec3(1.0 / 2.2));
                 
-                gl_FragColor = vec4(col, min(accumulatedAlpha + glowStrength * 0.5, 1.0));
+                // Force full opacity inside event horizon
+                if (hitBH) {
+                    col = vec3(0.0);
+                    accumulatedAlpha = 1.0;
+                }
+                
+                gl_FragColor = vec4(col, clamp(accumulatedAlpha + glowStrength * 0.5, 0.0, 1.0));
             }
         `;
 
@@ -266,7 +277,8 @@ export class SagittariusAStar extends BaseSystem {
             this.bhMaterial
         );
         bhMesh.position.copy(this.position);
-        bhMesh.userData = { name: 'GARGANTUA', isSystem: true, baseScale: 5000 };
+        bhMesh.userData = { name: 'SAGITTARIUS A*', isSystem: true, baseScale: 5000 };
+        bhMesh.renderOrder = 999; // Render AFTER all stars so alpha=1 properly occludes them
         this.group.add(bhMesh);
         this.targetables.push(bhMesh);
 

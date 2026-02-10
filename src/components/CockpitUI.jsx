@@ -49,9 +49,31 @@ const CockpitUI = () => {
 
             <div className="controls-hint">
                 DRAG: Look/Steer<br />
-                W: Warp Drive<br />
-                S: Brake<br />
+                W: Cruise Forward<br />
+                S: Reverse/Brake<br />
                 SHIFT: Boost (10x)
+            </div>
+
+            {/* Mobile Touch Controls - Cruise & Brake */}
+            <div
+                id="btn-cruise"
+                className="touch-btn"
+                onTouchStart={() => { if (engineRef.current) engineRef.current.state.keys.w = true; }}
+                onTouchEnd={() => { if (engineRef.current) engineRef.current.state.keys.w = false; }}
+                onMouseDown={() => { if (engineRef.current) engineRef.current.state.keys.w = true; }}
+                onMouseUp={() => { if (engineRef.current) engineRef.current.state.keys.w = false; }}
+            >
+                ▲ CRUISE
+            </div>
+            <div
+                id="btn-brake"
+                className="touch-btn"
+                onTouchStart={() => { if (engineRef.current) engineRef.current.state.keys.s = true; }}
+                onTouchEnd={() => { if (engineRef.current) engineRef.current.state.keys.s = false; }}
+                onMouseDown={() => { if (engineRef.current) engineRef.current.state.keys.s = true; }}
+                onMouseUp={() => { if (engineRef.current) engineRef.current.state.keys.s = false; }}
+            >
+                ▼ BACK
             </div>
 
             <div id="cockpit-ui">

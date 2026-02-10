@@ -283,14 +283,20 @@ body {
     border-color: var(--hud-primary);
 }
 
-#btn-warp {
+#btn-cruise {
     right: 20px;
     bottom: 30vh;
+    font-family: 'Share Tech Mono';
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
 #btn-brake {
     right: 20px;
     bottom: 18vh;
+    font-family: 'Share Tech Mono';
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
 .controls-hint {
@@ -327,75 +333,112 @@ body {
 }
 
 @media (max-width: 768px) {
+    .controls-hint {
+        display: none;
+    }
+
     .dashboard-container {
-        height: 160px;
+        height: auto;
         padding-bottom: 0;
     }
 
     .dashboard-glass {
         width: 100%;
-        border-radius: 30px 30px 0 0;
-        padding: 10px 15px;
-        transform: rotateX(5deg) translateY(0px);
+        border-radius: 20px 20px 0 0;
+        padding: 8px 12px;
+        transform: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .screen-section {
+        width: 100%;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 2px;
+    }
+
+    .screen-left,
+    .screen-right {
+        border: none !important;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .screen-center {
+        order: -1;
+    }
+
+    .radar-display {
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .radar-display .radar-grid {
+        width: 60px;
+        height: 60px;
+    }
+
+    .radar-systems-list {
+        max-width: 100px;
     }
 
     .radar-group {
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
     }
 
     .steering-handles {
-        width: 140%;
-        left: -20%;
-        bottom: -20px;
+        display: none;
     }
 
     .radar-container {
-        width: 90px;
-        height: 90px;
+        width: 70px;
+        height: 70px;
     }
 
     .data-value {
-        font-size: 14px;
+        font-size: 12px;
     }
 
     .data-big {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .label {
-        font-size: 8px;
+        font-size: 7px;
         letter-spacing: 0.5px;
     }
 
     .unit {
-        font-size: 10px;
+        font-size: 9px;
     }
 
     .compass-container {
-        width: 300px;
+        width: 250px;
     }
 
-    #btn-warp {
-        width: 60px;
-        height: 60px;
+    .top-bar {
+        height: 40px;
+    }
+
+    #btn-cruise {
+        width: 64px;
+        height: 64px;
         right: 10px;
-        bottom: 25vh;
+        bottom: calc(30vh);
+        font-size: 10px;
     }
 
     #btn-brake {
-        width: 60px;
-        height: 60px;
+        width: 64px;
+        height: 64px;
         right: 10px;
-        bottom: 15vh;
-    }
-
-    .screen-left {
-        border-right: none;
-    }
-
-    .screen-right {
-        border-left: none;
+        bottom: calc(18vh);
+        font-size: 10px;
     }
 }
 

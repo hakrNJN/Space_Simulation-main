@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createRadialTexture } from '../utils/textureUtils.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
 
 /**
  * Crab Nebula (M1) - Realistic Supernova Remnant

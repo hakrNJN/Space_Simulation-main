@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { createRadialTexture } from '../utils/textureUtils.js';
+
 
 /**
  * Vega - Blue-white main-sequence star
@@ -53,10 +55,11 @@ export class Vega extends BaseSystem {
         diskGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const diskMat = new THREE.PointsMaterial({
-            size: 200,
+            size: 400, // Slightly larger to account for soft texture
+            map: createRadialTexture(),
             vertexColors: true,
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.8,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });

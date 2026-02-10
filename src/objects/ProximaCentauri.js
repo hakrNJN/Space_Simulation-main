@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { createNoiseTexture } from '../utils/textureUtils.js';
 
 /**

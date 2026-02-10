@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
 
 /**
  * Sirius Binary - Brightest star in the night sky

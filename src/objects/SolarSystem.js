@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createNoiseTexture, createStarTexture } from '../utils/textureUtils.js';
-import { SYSTEM_POSITIONS } from './index.js';
+import { SYSTEM_POSITIONS } from './SystemPositions.js';
 
 /**
  * SolarSystem - Our home star system
@@ -24,7 +24,7 @@ export class SolarSystem extends BaseSystem {
         this.targetables.push(sun);
 
         // Add point light for the sun
-        const sunLight = new THREE.PointLight(0xffffff, 25.0, 5000000, 0.5);
+        const sunLight = new THREE.PointLight(0xffffff, 28.75, 5000000, 0.5);
         this.group.add(sunLight);
 
         // PLANETS — Realistic colors
@@ -82,7 +82,7 @@ export class SolarSystem extends BaseSystem {
     }
 
     createAsteroidBelt(count, minRadius, maxRadius, texture) {
-        const geo = new THREE.DodecahedronGeometry(20, 0);
+        const geo = new THREE.DodecahedronGeometry(20, 1);
         const mat = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.8,
