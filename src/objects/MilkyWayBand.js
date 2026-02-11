@@ -28,7 +28,6 @@ export class MilkyWayBand extends BaseSystem {
         this.group.rotation.z = 0;
 
         this.createArmDustFill(radialTexture);
-        this.createInterArmGas(createNoiseTexture('gas', '#4400cc', '#000000')); // NEW: Fill gaps
         this.createSpiralArms(starTexture);
         // this.createCentralBar(starTexture); // Removed to empty center ("H type" fix)
         this.createGalacticRing(radialTexture);
