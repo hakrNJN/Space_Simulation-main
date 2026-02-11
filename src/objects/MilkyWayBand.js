@@ -94,22 +94,19 @@ export class MilkyWayBand extends BaseSystem {
             const pt = this._armPoint(arm, t, 1.1);
 
             // Exclusion Zone: 250k radius around named systems
+            // Exclusion Zone: 375k around named systems
             let excluded = false;
             for (const sys of systems) {
                 const dx = pt.x - sys.x;
                 const dy = pt.y - sys.y;
                 const dz = pt.z - sys.z;
-                if (dx * dx + dy * dy + dz * dz < 62500000000) { // 250,000^2
+                if (dx * dx + dy * dy + dz * dz < 140625000000) { // 375,000^2
                     excluded = true;
                     break;
                 }
             }
             if (excluded) {
-                // If excluded, just skip this particle (or respawn, but skipping is faster for loop)
-                // To keep count exact we'd retry, but simpler to accept slight reduction
-                positions[i * 3] = 0;
-                positions[i * 3 + 1] = 0;
-                positions[i * 3 + 2] = 0;
+                positions[i * 3] = 0; positions[i * 3 + 1] = 0; positions[i * 3 + 2] = 0;
                 continue;
             }
 
@@ -149,7 +146,9 @@ export class MilkyWayBand extends BaseSystem {
 
         for (let i = 0; i < count; i++) {
             const arm = arms[i % 4];
-            const t = Math.pow(Math.random(), 0.5);
+            // 40x Density Gradient: Bunch at center
+            // Power 3.0 -> Very high density near t=0
+            const t = Math.pow(Math.random(), 3.0);
             const pt = this._armPoint(arm, t, 0.8);
 
             positions[i * 3] = pt.x;
@@ -271,13 +270,13 @@ export class MilkyWayBand extends BaseSystem {
             const y = (Math.random() - 0.5) * gasThickness;
 
             // Exclusion Zone Check
-            // Increased exclusion radius to 250k (6.25e10)
+            // Increased exclusion radius to 375k (140.625e9)
             let excluded = false;
             for (const sys of systems) {
                 const dx = x - sys.x;
                 const dy = y - sys.y;
                 const dz = z - sys.z;
-                if (dx * dx + dy * dy + dz * dz < 62500000000) {
+                if (dx * dx + dy * dy + dz * dz < 140625000000) {
                     excluded = true;
                     break;
                 }
@@ -367,8 +366,9 @@ export class MilkyWayBand extends BaseSystem {
 
             // Spherical bulge, slightly flattened y
             // Increased y volume 2x (0.6 -> 1.2)
+            // Flattened Core: 0.4 vertical scaling (was 1.2)
             const x = r * Math.sin(phi) * Math.cos(theta);
-            const y = (r * Math.sin(phi) * Math.sin(theta)) * 1.2;
+            const y = (r * Math.sin(phi) * Math.sin(theta)) * 0.4;
             const z = r * Math.cos(phi);
 
             positions[i * 3] = x;
@@ -400,7 +400,7 @@ export class MilkyWayBand extends BaseSystem {
     createCoreDust(texture) {
         // Blurry dust / gas balls in the core cluster region
         const geo = new THREE.BufferGeometry();
-        const count = 4500; // Increased 1.5x (3k -> 4.5k)
+        const count = 6000; // Increased densely for "brown chocolate" clouds
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
 
@@ -411,18 +411,19 @@ export class MilkyWayBand extends BaseSystem {
             const phi = Math.acos((Math.random() * 2) - 1);
 
             const x = r * Math.sin(phi) * Math.cos(theta);
-            const y = (r * Math.sin(phi) * Math.sin(theta)) * 1.0; // Increased volume (0.5 -> 1.0)
+            const y = (r * Math.sin(phi) * Math.sin(theta)) * 0.4;
             const z = r * Math.cos(phi);
 
             positions[i * 3] = x;
             positions[i * 3 + 1] = y;
             positions[i * 3 + 2] = z;
 
-            // Warm amber / orange / reddish dust
+            // CHOCOLATE BROWN CLOUDS
+            // HSL ~ 0.04 (Orange-Red), 0.6 Sat, 0.15 Lightness (Dark Brown)
             const c = new THREE.Color().setHSL(
-                0.05 + Math.random() * 0.1,
-                0.5 + Math.random() * 0.3,
-                0.08 + Math.random() * 0.12
+                0.04 + Math.random() * 0.02,
+                0.6 + Math.random() * 0.2, // Rich saturation
+                0.1 + Math.random() * 0.1  // Very dark
             );
             colors[i * 3] = c.r;
             colors[i * 3 + 1] = c.g;
@@ -467,12 +468,13 @@ export class MilkyWayBand extends BaseSystem {
             const y = starThickness * 0.5 * (Math.random() + Math.random() + Math.random() - 1.5) * 0.67;
 
             // Exclusion Zone
+            // Exclusion Zone: 375k
             let excluded = false;
             for (const sys of systems) {
                 const dx = x - sys.x;
                 const dy = y - sys.y;
                 const dz = z - sys.z;
-                if (dx * dx + dy * dy + dz * dz < 62500000000) {
+                if (dx * dx + dy * dy + dz * dz < 140625000000) {
                     excluded = true;
                     break;
                 }

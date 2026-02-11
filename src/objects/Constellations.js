@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
+import { createStarTexture } from '../utils/textureUtils.js';
 
 /**
  * Constellations - Star patterns across the universe
@@ -86,8 +87,63 @@ export class Constellations extends BaseSystem {
         geo.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
 
         const mesh = new THREE.LineSegments(geo, material);
-        mesh.renderOrder = -1; // Render behind systems but visible
+        mesh.renderOrder = -1;
         this.group.add(mesh);
+
+        // === STAR POINTS ===
+        // Create visible stars at the vertices
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        const starCol = [];
+
+        // Helper to add unique stars could be complex, but simple approach:
+        // iterate the lines array (which has pairs). 
+        // We will just add ALL line endpoints as stars. 
+        // Duplicates (overlapping stars at same point) are physically fine for visuals (just brighter).
+
+        for (let i = 0; i < lines.length; i += 3) {
+            const x = lines[i];
+            const y = lines[i + 1];
+            const z = lines[i + 2];
+
+            starPos.push(x, y, z);
+
+            // Color based on distance (Inner vs Outer)
+            const distSq = x * x + z * z;
+            if (distSq < 100000000000000) { // < 10M radius (Inner)
+                // White / Blue-ish
+                const c = new THREE.Color().setHSL(0.6, 0.2, 0.8 + Math.random() * 0.2);
+                starCol.push(c.r, c.g, c.b);
+            } else { // Outer (Alien)
+                // Yellow / Red / White mix
+                const hue = Math.random() > 0.5 ? 0.1 : 0.6; // Yellow or Blue
+                const c = new THREE.Color().setHSL(hue, 0.8, 0.7);
+                starCol.push(c.r, c.g, c.b);
+            }
+        }
+
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starCol, 3));
+
+        const starMat = new THREE.PointsMaterial({
+            size: 60000,
+            map: createStarTexture(), // Use shared utility if available or standard circle
+            transparent: true,
+            vertexColors: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        // Need to import createStarTexture if not imported.
+        // It is not imported in original file context shown in Step 1336?
+        // Wait, Step 1336 shows:
+        // 1: import * as THREE from 'three';
+        // 2: import { BaseSystem } from './BaseSystem.js';
+        // It does NOT import createStarTexture.
+        // I must add the import too!
+
+        this.group.add(new THREE.Points(starGeo, starMat));
     }
 
     update(delta, time) {

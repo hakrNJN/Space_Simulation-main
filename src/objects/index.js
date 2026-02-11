@@ -19,6 +19,8 @@ import { MilkyWayBand } from './MilkyWayBand.js';
 import { Andromeda } from './Andromeda.js';
 import { Constellations } from './Constellations.js';
 import { BackgroundGalaxies } from './BackgroundGalaxies.js';
+import { DeepSpaceObjects } from './DeepSpaceObjects.js';
+import { GalaxyDistanceLOD } from './GalaxyDistanceLOD.js';
 
 // Re-export for external use
 export {
@@ -36,7 +38,9 @@ export {
     MilkyWayBand,
     Andromeda,
     Constellations,
-    BackgroundGalaxies
+    BackgroundGalaxies,
+    DeepSpaceObjects,
+    GalaxyDistanceLOD
 };
 
 /**
@@ -59,6 +63,8 @@ export function createAllSystems() {
         new MilkyWayBand(),
         new Constellations(),     // Star patterns (Inner & Outer)
         new BackgroundGalaxies(), // 6 Alien Galaxy Types
+        new DeepSpaceObjects(),   // God's Hand Nebula, Globular Clusters
+        new GalaxyDistanceLOD(),  // Heavy Density Layer (Visible at Distance)
 
         // === Galactic Center ===
         new SagittariusAStar(),
