@@ -47,12 +47,17 @@ export class MilkyWayBand extends BaseSystem {
     }
 
     _armPoint(arm, t, widthMul) {
-        // Scaled by 1.5x (Total ~5.6x original)
-        const r = 787500 + t * 3656250; // 525k -> 787.5k, 2.4375M -> 3.65M
-        const spiralAngle = arm.offset + Math.log(r / 787500) / arm.tightness;
+        // Scaled by 1.5x (Total ~8.4x original)
+        // 787.5k * 1.5 = 1181250
+        // 3.65M * 1.5 = 5484375
+        const r = 1181250 + t * 5484375;
+        const spiralAngle = arm.offset + Math.log(r / 1181250) / arm.tightness;
 
-        // WIDE arms (Scaled)
-        const physicalWidth = (787500 * (1 - t * 0.92) + 67500) * arm.strength * widthMul;
+        // WIDE arms (Scaled 1.5x width too)
+        // Base width 2.36M * 1.5 = 3.54M
+        const baseWidth = 3540000;
+        const tipWidth = 60000;
+        const physicalWidth = (baseWidth * Math.pow(1 - t, 3) + tipWidth) * arm.strength * widthMul;
 
         const angularSpread = physicalWidth / r;
         const angleOffset = (Math.random() - 0.5) * angularSpread;
@@ -63,10 +68,9 @@ export class MilkyWayBand extends BaseSystem {
         const theta = spiralAngle + angleOffset;
         const finalR = r + radialJitter;
 
-        // Vertical Bulge Logic: Smooth taper from center to edge
-        // 2.5x thickness for visible bulge profile
-        const thickness = 20000 + 875000 * Math.pow(1 - t, 1.2);
-        // Gaussian-like distribution: stars concentrate near midplane, soft fade at edges
+        // Vertical Bulge Logic - Scaled thickness 1.5x
+        const thickness = 30000 + 1312500 * Math.pow(1 - t, 1.2);
+
         const y = thickness * 0.5 * (Math.random() + Math.random() + Math.random() - 1.5) * 0.67;
 
         return {
@@ -78,15 +82,36 @@ export class MilkyWayBand extends BaseSystem {
 
     createArmDustFill(texture) {
         const geo = new THREE.BufferGeometry();
-        const count = 20000;
+        const count = 30000; // Increased 1.5x (20k -> 30k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const arms = this._getArms();
+        const systems = Object.values(SYSTEM_POSITIONS);
 
         for (let i = 0; i < count; i++) {
             const arm = arms[i % 4];
             const t = Math.pow(Math.random(), 0.4);
             const pt = this._armPoint(arm, t, 1.1);
+
+            // Exclusion Zone: 250k radius around named systems
+            let excluded = false;
+            for (const sys of systems) {
+                const dx = pt.x - sys.x;
+                const dy = pt.y - sys.y;
+                const dz = pt.z - sys.z;
+                if (dx * dx + dy * dy + dz * dz < 62500000000) { // 250,000^2
+                    excluded = true;
+                    break;
+                }
+            }
+            if (excluded) {
+                // If excluded, just skip this particle (or respawn, but skipping is faster for loop)
+                // To keep count exact we'd retry, but simpler to accept slight reduction
+                positions[i * 3] = 0;
+                positions[i * 3 + 1] = 0;
+                positions[i * 3 + 2] = 0;
+                continue;
+            }
 
             positions[i * 3] = pt.x;
             positions[i * 3 + 1] = pt.y;
@@ -117,7 +142,7 @@ export class MilkyWayBand extends BaseSystem {
 
     createSpiralArms(texture) {
         const geo = new THREE.BufferGeometry();
-        const count = 40000;
+        const count = 60000; // Increased 1.5x (40k -> 60k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const arms = this._getArms();
@@ -176,12 +201,12 @@ export class MilkyWayBand extends BaseSystem {
 
     createGalacticRing(texture) {
         const geo = new THREE.BufferGeometry();
-        const count = 25000; // Increased count for spread
+        const count = 37500; // Increased 1.5x (25k -> 37.5k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
 
-        const innerR = 590625; // 393,750 * 1.5
-        const outerR = 2812500; // 1.875M * 1.5
+        const innerR = 885937; // 590625 * 1.5
+        const outerR = 4218750; // 2.8125M * 1.5
 
         for (let i = 0; i < count; i++) {
             const t = Math.random();
@@ -227,31 +252,32 @@ export class MilkyWayBand extends BaseSystem {
     createInterArmGas(texture) {
         // Massive Gas Clouds filling the gaps
         const geo = new THREE.BufferGeometry();
-        const count = 5000; // Big blurred clouds
+        const count = 7500; // Increased 1.5x (5k -> 7.5k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const systems = Object.values(SYSTEM_POSITIONS);
 
         let valid = 0;
         for (let i = 0; i < count; i++) {
-            const r = 800000 + Math.random() * 2800000; // Start at 800k - outer arms only
+            const r = 1200000 + Math.random() * 4200000; // Scaled 1.5x (800k -> 1.2M, 2.8M -> 4.2M)
             const theta = Math.random() * Math.PI * 2;
 
             const x = Math.cos(theta) * r;
             const z = Math.sin(theta) * r;
 
             // Gas cloud thickness follows bulge
-            const normR = r / 3600000;
-            const gasThickness = 40000 + 80000 * Math.exp(-normR * 3);
+            const normR = r / 5400000;
+            const gasThickness = 60000 + 120000 * Math.exp(-normR * 3);
             const y = (Math.random() - 0.5) * gasThickness;
 
             // Exclusion Zone Check
+            // Increased exclusion radius to 250k (6.25e10)
             let excluded = false;
             for (const sys of systems) {
                 const dx = x - sys.x;
                 const dy = y - sys.y;
                 const dz = z - sys.z;
-                if (dx * dx + dy * dy + dz * dz < 225000 * 225000) { // 150k -> 225k radius clear zone
+                if (dx * dx + dy * dy + dz * dz < 62500000000) {
                     excluded = true;
                     break;
                 }
@@ -328,20 +354,21 @@ export class MilkyWayBand extends BaseSystem {
     createCoreStars(texture) {
         // High density core stars (Bulge)
         const geo = new THREE.BufferGeometry();
-        const count = 8000; // ~0.7x of disk stars (12000)
+        const count = 12000; // Increased 1.5x (8k -> 12k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-            // Gap 450k (1.5x push outward)
-            // Spread into large area up to 1125k
-            const r = 450000 + Math.pow(Math.random(), 1.5) * 675000;
+            // Gap 675k (1.5x)
+            // Spread up to 2.7M (1.5x)
+            const r = 675000 + Math.pow(Math.random(), 1.5) * 2025000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
 
             // Spherical bulge, slightly flattened y
+            // Increased y volume 2x (0.6 -> 1.2)
             const x = r * Math.sin(phi) * Math.cos(theta);
-            const y = (r * Math.sin(phi) * Math.sin(theta)) * 0.6;
+            const y = (r * Math.sin(phi) * Math.sin(theta)) * 1.2;
             const z = r * Math.cos(phi);
 
             positions[i * 3] = x;
@@ -373,18 +400,18 @@ export class MilkyWayBand extends BaseSystem {
     createCoreDust(texture) {
         // Blurry dust / gas balls in the core cluster region
         const geo = new THREE.BufferGeometry();
-        const count = 3000;
+        const count = 4500; // Increased 1.5x (3k -> 4.5k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-            // Pushed 2.5x away from BH: 1500k - 2250k
-            const r = 1500000 + Math.random() * 750000;
+            // Scaled 1.5x: 2.25M - 3.375M
+            const r = 2250000 + Math.random() * 2250000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
 
             const x = r * Math.sin(phi) * Math.cos(theta);
-            const y = (r * Math.sin(phi) * Math.sin(theta)) * 0.5; // Flattened
+            const y = (r * Math.sin(phi) * Math.sin(theta)) * 1.0; // Increased volume (0.5 -> 1.0)
             const z = r * Math.cos(phi);
 
             positions[i * 3] = x;
@@ -419,22 +446,42 @@ export class MilkyWayBand extends BaseSystem {
 
     createDiskStars(texture) {
         const geo = new THREE.BufferGeometry();
-        const count = 12000;
+        const count = 18000; // Scaled 1.5x (12k -> 18k)
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
+        const systems = Object.values(SYSTEM_POSITIONS);
         let valid = 0;
 
         for (let i = 0; i < count; i++) {
-            const r = 787500 + Math.random() * 3656250; // 525k -> 787.5k, 2.437M -> 3.65M
+            // Scaled 1.5x: 787.5k -> 1.18M, 3.65M -> 5.48M
+            // 2.25M decay -> 3.375M
+            const r = 1181250 + Math.random() * 5484375;
             const theta = Math.random() * Math.PI * 2;
-            if (Math.random() > Math.exp(-r / 2250000) * 3) continue; // Decay 1.5M -> 2.25M
+            if (Math.random() > Math.exp(-r / 3375000) * 3) continue;
 
-            positions[valid * 3] = Math.cos(theta) * r;
-            const t = (r - 787500) / 3656250;
-            const starThickness = 75000 + 375000 * Math.pow(1 - t, 1.2); // 2.5x smooth taper
-            // Gaussian-like y
-            positions[valid * 3 + 1] = starThickness * 0.5 * (Math.random() + Math.random() + Math.random() - 1.5) * 0.67;
-            positions[valid * 3 + 2] = Math.sin(theta) * r;
+            const t = (r - 1181250) / 5484375;
+            const starThickness = 30000 + 1312500 * Math.pow(1 - t, 1.2);
+
+            const x = Math.cos(theta) * r;
+            const z = Math.sin(theta) * r;
+            const y = starThickness * 0.5 * (Math.random() + Math.random() + Math.random() - 1.5) * 0.67;
+
+            // Exclusion Zone
+            let excluded = false;
+            for (const sys of systems) {
+                const dx = x - sys.x;
+                const dy = y - sys.y;
+                const dz = z - sys.z;
+                if (dx * dx + dy * dy + dz * dz < 62500000000) {
+                    excluded = true;
+                    break;
+                }
+            }
+            if (excluded) continue;
+
+            positions[valid * 3] = x;
+            positions[valid * 3 + 1] = y;
+            positions[valid * 3 + 2] = z;
 
             const c = new THREE.Color().setHSL(0.6, 0.2, 0.4);
             colors[valid * 3] = c.r;

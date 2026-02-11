@@ -17,6 +17,8 @@ import { SpaceDebris } from './SpaceDebris.js';
 import { NebulaCloud } from './NebulaCloud.js';
 import { MilkyWayBand } from './MilkyWayBand.js';
 import { Andromeda } from './Andromeda.js';
+import { Constellations } from './Constellations.js';
+import { BackgroundGalaxies } from './BackgroundGalaxies.js';
 
 // Re-export for external use
 export {
@@ -32,7 +34,9 @@ export {
     SpaceDebris,
     NebulaCloud,
     MilkyWayBand,
-    Andromeda
+    Andromeda,
+    Constellations,
+    BackgroundGalaxies
 };
 
 /**
@@ -53,6 +57,8 @@ export function createAllSystems() {
     return [
         // === Milky Way Galaxy Structure ===
         new MilkyWayBand(),
+        new Constellations(),     // Star patterns (Inner & Outer)
+        new BackgroundGalaxies(), // 6 Alien Galaxy Types
 
         // === Galactic Center ===
         new SagittariusAStar(),
