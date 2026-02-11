@@ -44,12 +44,12 @@ export class SagittariusAStar extends BaseSystem {
             varying vec3 vWorldPosition;
             varying vec2 vUv;
 
-            #define MAX_STEPS 120
-            #define BH_RADIUS 1.5
-            #define EVENT_HORIZON_FADE 1.55 
-            #define DISK_INNER 2.6
-            #define DISK_OUTER 16.8
-            #define DISK_HEIGHT 0.25
+            #define MAX_STEPS 250 
+            #define BH_RADIUS 0.8
+            #define EVENT_HORIZON_FADE 0.85 
+            #define DISK_INNER 1.5
+            #define DISK_OUTER 35.0
+            #define DISK_HEIGHT 0.08 
             
             // --- Noise Functions ---
             float hash(vec3 p) {
@@ -66,62 +66,69 @@ export class SagittariusAStar extends BaseSystem {
                 vec3 i = floor(x);
                 vec3 f = fract(x);
                 f = f * f * (3.0 - 2.0 * f);
+                vec3 u = f * f * (3.0 - 2.0 * f);
                 return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
                             mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
                         mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
                             mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
             }
 
+            // FBM with more octaves for detail
             float fbm(vec3 p) {
                 float v = 0.0;
                 float a = 0.5;
                 vec3 shift = vec3(100.0);
-                for (int i = 0; i < 5; ++i) {
+                mat3 rot = mat3(cos(0.5), sin(0.5), 0.0, -sin(0.5), cos(0.5), 0.0, 0.0, 0.0, 1.0);
+                for (int i = 0; i < 5; ++i) { 
                     v += a * noise(p);
-                    p = p * 2.0 + shift;
+                    p = rot * p * 2.0 + shift;
                     a *= 0.5;
                 }
                 return v;
             }
 
-            float voronoi(vec3 p) {
-                vec3 i = floor(p);
-                vec3 f = fract(p);
-                float res = 0.0;
-                for(int z=-1; z<=1; z++) {
-                    for(int y=-1; y<=1; y++) {
-                        for(int x=-1; x<=1; x++) {
-                            vec3 b = vec3(float(x), float(y), float(z));
-                            vec3 r = vec3(b) - f + hash(i + b);
-                            float d = dot(r,r);
-                            res += exp( -16.0*d );
-                        }
-                    }
-                }
-                return res;
+            // --- DOMAIN WARPING (Fluid Smoke Trails) ---
+            float warp(vec3 p) {
+                vec3 q = vec3(
+                    fbm(p + vec3(0.0)),
+                    fbm(p + vec3(5.2, 1.3, 2.8)),
+                    fbm(p + vec3(3.2, 9.2, 0.3))
+                );
+                
+                return fbm(p + 4.0 * q);
             }
 
-            vec3 getDiskColor(float intensity, float temp) {
-                vec3 colorLow = vec3(0.8, 0.08, 0.0);
-                vec3 colorMid = vec3(1.0, 0.55, 0.08);
-                vec3 colorHigh = vec3(1.0, 0.92, 0.85);
-                vec3 col = mix(colorLow, colorMid, smoothstep(0.0, 0.35, temp));
-                col = mix(col, colorHigh, smoothstep(0.35, 1.0, temp));
-                return col * intensity * 18.0;
+            // --- CINEMA GRADIENT (Interstellar Exact) ---
+            vec3 getDiskGradient(float temp) {
+                // Glassy Ramps
+                
+                vec3 cBlack  = vec3(0.0, 0.0, 0.0);         
+                vec3 cRed    = vec3(0.4, 0.02, 0.005);      // Deep Blood Red
+                vec3 cOrange = vec3(0.9, 0.3, 0.02);        // Magma Orange
+                vec3 cGold   = vec3(1.0, 0.8, 0.4);         // Wheat Gold
+                vec3 cWhite  = vec3(1.0, 1.0, 1.0);         // Blinding
+                
+                // Widened transitions
+                vec3 col = mix(cBlack, cRed, smoothstep(0.0, 0.3, temp));
+                col = mix(col, cOrange, smoothstep(0.3, 0.55, temp));
+                col = mix(col, cGold, smoothstep(0.55, 0.85, temp));
+                col = mix(col, cWhite, smoothstep(0.85, 1.15, temp));
+                
+                return col;
             }
 
             void main() {
-                // Calculate ray from camera through this fragment
                 vec3 ro = cameraPos;
                 vec3 rd = normalize(vWorldPosition - ro);
-                
-                // Transform to black hole local space
                 vec3 pos = (ro - bhPos) / 5000.0;
                 vec3 dir = rd;
                 
-                // Dithering
-                float dither = hash2(vUv + iTime) * 0.08; 
-                pos += dir * dither; 
+                // Calculate Camera Distance for Exposure Control
+                float camDistLocal = length((ro - bhPos) / 5000.0);
+                float exposure = mix(4.0, 8.0, 1.0 - smoothstep(10.0, 60.0, camDistLocal));
+
+                // Dither
+                pos += dir * hash2(vUv + iTime * 0.1) * 0.02; 
 
                 vec3 col = vec3(0.0);
                 float totalDist = 0.0;
@@ -134,128 +141,127 @@ export class SagittariusAStar extends BaseSystem {
                     float distToCenter = length(pos);
                     closestDistToBH = min(closestDistToBH, distToCenter);
                     
-                    // Gravitational Lensing
-                    float bendStrength = 0.45; // 3x lensing for stronger pull
+                    // AGGRESSIVE GRAVITY for Einstein Ring from distance
+                    float bendStrength = 2.5; 
                     vec3 toCenter = normalize(-pos);
-                    float grav = bendStrength / (distToCenter * distToCenter + 0.01); 
+                    float grav = bendStrength / (distToCenter * distToCenter + 0.001); 
                     dir = normalize(dir + toCenter * grav);
                     
-                    float stepSize = max(0.02, distToCenter * 0.03); 
-                    if (distToCenter < BH_RADIUS * 2.0) stepSize = 0.05; 
-                    if (distToCenter < BH_RADIUS * 1.2) stepSize = 0.02;
-
+                    // High precision steps near the hole for the sharp turn
+                    float stepSize = max(0.01, distToCenter * 0.015); 
+                    if (distToCenter < BH_RADIUS * 4.0) stepSize = 0.015; // Ensure we capture the arc
+                    
                     pos += dir * stepSize;
                     totalDist += stepSize;
 
                     // --- Volumetric Disk Sampling ---
                     float distToPlane = abs(pos.y);
                     
-                    if(distToPlane < DISK_HEIGHT * 4.0 && distToCenter > DISK_INNER && distToCenter < DISK_OUTER) {
-                        float radialFade = smoothstep(DISK_INNER, DISK_INNER + 0.5, distToCenter) * (1.0 - smoothstep(DISK_OUTER - 4.0, DISK_OUTER, distToCenter));
-                        
-                        float angle = atan(pos.z, pos.x);
-                        float rotSpeed = 5.0 / (distToCenter + 0.1);
-                        float animAngle = angle + iTime * rotSpeed;
-                        
-                        // Clean smooth disk - no noise, pure radial gradient
-                        float dens = radialFade; // Smooth gradient, no noise
-                        
-                        // Rocks orbit around the black hole - visible rotation
-                        float rockOrbitSpeed = 4.0 / (distToCenter + 0.3);
-                        float rockAngle = angle + iTime * rockOrbitSpeed * 6.0; // 6x orbital speed
-                        vec3 rockPos = vec3(cos(rockAngle)*distToCenter, sin(rockAngle)*distToCenter, pos.y * 2.0);
-                        float rocks = voronoi(rockPos * 2.0 + 10.0); // Slightly larger rocks
-                        float rockSolid = smoothstep(0.65, 0.85, rocks); // More visible
-                        
-                        float rockStart = DISK_INNER + 1.5; // Rocks start closer to center
-                        float rockFade = smoothstep(rockStart, rockStart + 2.0, distToCenter);
-                        rockSolid *= rockFade;
+                    // Thicken inner disk for visible arc
+                    float localHeight = DISK_HEIGHT;
+                    if (distToCenter < 4.0) localHeight *= 2.5;
 
-                        float verticalFade = exp(-pow(distToPlane / (DISK_HEIGHT), 2.0));
-                        float intensity = dens * verticalFade;
+                    if(distToPlane < localHeight * 6.0 && distToCenter > DISK_INNER && distToCenter < DISK_OUTER) {
                         
-                        if (intensity > 0.001 || rockSolid > 0.1) {
+                        // 1. Radial Fade (Sharp inner, soft outer smoke)
+                        float radialFade = smoothstep(DISK_INNER, DISK_INNER + 0.5, distToCenter);
+                        // Outer Gas Density Fade (Translucency)
+                        radialFade *= (1.0 - smoothstep(15.0, DISK_OUTER, distToCenter)) * 0.8 + 0.2; 
+                        
+                        // 2. Domain Warped Noise coordinates
+                        float angle = atan(pos.z, pos.x);
+                        
+                        // RADIAL STRETCHING (Waterfall Effect)
+                        float twist = angle + distToCenter * 0.3; 
+                        vec3 noisePos = vec3(twist * 10.0, distToCenter * 20.0, pos.y * 10.0 - iTime * 0.5);
+                        
+                        // 3. The Detail Texture (Silk)
+                        float gas = warp(noisePos);
+                        
+                        // 4. Soft Contrast (No Grain)
+                        float fluidVariant = smoothstep(0.15, 0.85, gas); 
+                        
+                        // 5. Vertical Fade (RAZOR THIN base)
+                        float verticalFade = exp(-pow(distToPlane / (localHeight * (0.8 + distToCenter*0.02)), 4.0));
+                        
+                        float intensityLimit = radialFade * verticalFade * fluidVariant;
+                        
+                        // ACCUMULATE
+                        if (intensityLimit > 0.001) {
+                            // Relativistic Doppler Calculation
                             vec3 diskVel = normalize(vec3(-pos.z, 0.0, pos.x));
-                            float doppler = dot(diskVel, -normalize(pos - (ro - bhPos) / 5000.0));
+                            float viewDot = dot(diskVel, -dir);
+                            float doppler = viewDot * (12.0 / (distToCenter + 5.0)); 
                             
-                            float beam = pow(1.0 + doppler * 0.85, 2.5); 
-                            float temperature = intensity + (doppler * 0.4);
+                            // EXTREME BEAMING (Asymmetry)
+                            // Left side (approaching) gets huge boost, Right side gets dim
+                            float beam = pow(1.0 + doppler * 0.8, 4.0); 
                             
-                            vec3 particleCol = vec3(0.0);
+                            // Temp Shift: Approaching is hotter/bluer
+                            float tempBase = intensityLimit + (1.0 - (distToCenter/DISK_OUTER)*1.5); 
+                            float effTemp = tempBase * 0.7 + (doppler * 0.3);
                             
-                            if (rockSolid > 0.1) {
-                                particleCol = vec3(0.02, 0.01, 0.0);
-                                intensity += rockSolid * 2.0; 
-                            } else {
-                                particleCol = getDiskColor(intensity, clamp(temperature, 0.0, 1.2));
+                            // Look up color
+                            vec3 gasCol = getDiskGradient(clamp(effTemp, 0.0, 1.2));
+                            
+                            // Translucency at edges
+                            if (distToCenter > 15.0) {
+                                intensityLimit *= 0.5; // Ghostly outer ring
                             }
-                            
-                            particleCol *= beam;
-                            
-                            float absorption = 0.35 * intensity; // Denser disk
-                            col += particleCol * absorption * (2.5 - length(col) * 0.3);
+
+                            float absorption = 0.5 * intensityLimit; 
+                            col += gasCol * beam * exposure * absorption * (1.0 - accumulatedAlpha);
                             accumulatedAlpha += absorption;
                         }
                     }
 
-                    // --- Volumetric Event Horizon ---
+                    // Event Horizon Void
                     if(distToCenter < EVENT_HORIZON_FADE) {
-                        float voidDensity = smoothstep(EVENT_HORIZON_FADE, BH_RADIUS, distToCenter);
-                        float voidAbsorption = voidDensity * 10.0 * stepSize;
-                        accumulatedAlpha += voidAbsorption;
+                        float voidDensity = smoothstep(EVENT_HORIZON_FADE, BH_RADIUS * 0.9, distToCenter);
+                        accumulatedAlpha += voidDensity * stepSize * 20.0;
                     }
 
-                    if(accumulatedAlpha >= 1.0) {
-                        hitBH = (distToCenter < BH_RADIUS * 1.2); 
+                    // RELAXED HORIZON KILL (Allows deep wrapping)
+                    if(accumulatedAlpha >= 0.99) {
+                        hitBH = (distToCenter < BH_RADIUS * 0.6); 
                         break;
                     }
                     
-                    if(distToCenter < BH_RADIUS * 0.8) {
+                    if(distToCenter < BH_RADIUS * 0.5) {
                         hitBH = true;
                         break;
                     }
 
-                    if(totalDist > 60.0) break;
+                    if(totalDist > 100.0) break;
                 }
 
-                // --- Post-Process ---
+                // --- Cine-Post ---
                 
-                // Photon Ring
-                float ringWidth = 0.18;
+                // Photon Ring (Razor Sharp)
+                float ringWidth = 0.04; 
                 if (!hitBH && closestDistToBH < BH_RADIUS + ringWidth) {
-                    float ringIntensity = 1.0 - smoothstep(BH_RADIUS, BH_RADIUS + ringWidth, closestDistToBH);
-                    col += vec3(1.0, 0.95, 0.8) * pow(ringIntensity, 3.0) * 15.0; // Brighter ring
+                    float ringIntensity = smoothstep(BH_RADIUS + ringWidth, BH_RADIUS, closestDistToBH);
+                    col += vec3(1.0, 0.9, 0.7) * pow(ringIntensity, 12.0) * 40.0; // Thinner & Brighter
                 }
 
-                // Inner edge warm glow
-                if (!hitBH && closestDistToBH < BH_RADIUS + 0.5) {
-                    float edgeGlow = 1.0 - smoothstep(BH_RADIUS, BH_RADIUS + 0.5, closestDistToBH);
-                    col += vec3(1.0, 0.7, 0.3) * edgeGlow * 8.0; // Brighter edge
+                // Bloom/Glow (Soft Dreamy)
+                if (!hitBH) {
+                     float glow = 1.0 / (closestDistToBH - BH_RADIUS + 0.1);
+                     col += vec3(1.0, 0.5, 0.2) * glow * 0.03; 
                 }
 
-                // Glow
-                vec3 glowColor = vec3(1.0, 0.6, 0.2); 
-                float glowStrength = hitBH ? 0.0 : 1.8 / (closestDistToBH - BH_RADIUS + 0.3); // Stronger glow
-                col += glowColor * glowStrength * 1.2;
-
-                // Tone Mapping (ACES)
-                col *= 4.0; // Higher exposure
-                const float a = 2.51;
-                const float b = 0.03;
-                const float c = 2.43;
-                const float d = 0.59;
-                const float e = 0.14;
-                col = clamp((col * (a * col + b)) / (col * (c * col + d) + e), 0.0, 1.0);
+                // ACES Tone Mapping (Approximation) needed for high dynamic range
+                col *= 1.2;
+                vec3 x = max(vec3(0.0), col - 0.004);
+                vec3 retCol = (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
                 
-                col = pow(col, vec3(1.0 / 2.2));
-                
-                // Force full opacity inside event horizon
+                // Black Hole Silhouette
                 if (hitBH) {
-                    col = vec3(0.0);
+                    retCol = vec3(0.0);
                     accumulatedAlpha = 1.0;
                 }
                 
-                gl_FragColor = vec4(col, clamp(accumulatedAlpha + glowStrength * 0.5, 0.0, 1.0));
+                gl_FragColor = vec4(retCol, clamp(accumulatedAlpha, 0.0, 1.0));
             }
         `;
 

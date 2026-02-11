@@ -83,7 +83,7 @@ export class SpaceEngine {
         // Camera with huge far plane for space
         this.camera = new THREE.PerspectiveCamera(55, this.width / this.height, 0.1, 2000000000);
         // Start just outside Solar System, looking toward galactic center
-        this.camera.position.set(850000, 15000, 1160000);
+        this.camera.position.set(1350000, 15000, 1850000);
         this.camera.lookAt(new THREE.Vector3(0, 0, 0)); // Look toward Sgr A*
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });

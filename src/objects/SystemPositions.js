@@ -3,7 +3,7 @@ export const SYSTEM_POSITIONS = {
     SGR_A_STAR: { x: 0, y: 0, z: 0 },
 
     // === Solar neighborhood (Orion Spur) ===
-    SOLAR: { x: 815625, y: 0, z: 1125000 }, // 750k * 1.5 = 1.125M
+    SOLAR: { x: 1300000, y: 0, z: 1800000 }, // Outer Arm (~2.2M distance)
     PROXIMA: { x: 1096875, y: 14062, z: 1406250 },
     SIRIUS: { x: 562500, y: -16875, z: 871875 },
 
