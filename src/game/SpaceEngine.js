@@ -20,7 +20,9 @@ export class SpaceEngine {
             friction: 0.95,
             turnSpeedMax: 1.5,
             dragSensitivity: 0.003,
-            maxSpeed: 1000000,
+            turnSpeedMax: 1.5,
+            dragSensitivity: 0.003,
+            maxSpeed: 30000, // Limited to 30k per user request
             acceleration: 10000,
             steerSmoothing: 0.12, // Exponential smoothing factor (lower = smoother)
             steerSensitivity: 0.0015 // Reduced for finer control
@@ -31,7 +33,7 @@ export class SpaceEngine {
             time: 0,
             speed: 0, // Current speed
             baseSpeed: 5000, // Was 25000 — slower for better control
-            sprintSpeed: 35000, // Was 120000 — reduced sprint
+            sprintSpeed: 30000, // Max speed cap
             turnSpeed: 1.5,
             pitch: 0,
             yaw: 0,
@@ -324,7 +326,8 @@ export class SpaceEngine {
      * Main animation loop
      */
     animate() {
-        requestAnimationFrame(this.animate);
+        if (this.disposed) return; // Stop if disposed
+        this.animationId = requestAnimationFrame(this.animate);
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
         this.state.time += delta;
@@ -402,7 +405,9 @@ export class SpaceEngine {
         }
 
         // =========== RENDER ===========
-        this.renderer.render(this.scene, this.camera);
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        }
 
         // =========== HUD UPDATE ===========
         if (this.onUpdate) {
@@ -427,16 +432,37 @@ export class SpaceEngine {
      * Cleanup resources
      */
     cleanup() {
-        this.renderer.dispose();
-        this.scene.traverse(obj => {
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) {
-                if (Array.isArray(obj.material)) {
-                    obj.material.forEach(m => m.dispose());
-                } else {
-                    obj.material.dispose();
-                }
+        this.disposed = true; // Flag to stop loop
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+
+        if (this.renderer) {
+            this.renderer.dispose();
+            // Remove canvas from DOM
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
             }
-        });
+        }
+
+        if (this.scene) {
+            this.scene.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(m => m.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+                if (obj.texture) obj.texture.dispose();
+            });
+        }
+
+        // Clear references
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.systems = null;
     }
 }

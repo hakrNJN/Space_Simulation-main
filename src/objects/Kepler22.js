@@ -47,7 +47,8 @@ export class Kepler22 extends BaseSystem {
     createKepler22b() {
         // Super-Earth / Mini-Neptune - possibly water world
         const geo = new THREE.SphereGeometry(200, 64, 64);
-        const tex = createNoiseTexture('atmosphere', '#4488cc', '#225588');
+        const loader = new THREE.TextureLoader();
+        const tex = loader.load('/textures/planets/kepler22b.jpg');
         const mat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.3,

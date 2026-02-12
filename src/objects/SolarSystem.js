@@ -14,35 +14,146 @@ export class SolarSystem extends BaseSystem {
     }
 
     build(textures) {
-        const starTexture = createStarTexture();
+        const loader = new THREE.TextureLoader();
         const asteroidTexture = createNoiseTexture('asteroid', '#666666', '#222222');
 
         // SUN
-        const sun = this.createStar(2000, 0xffaa00, 6);
+        // High-res sun texture
+        const sunGeo = new THREE.SphereGeometry(2000, 64, 64);
+        const sunTex = loader.load('/textures/planets/sun.jpg');
+        const sunMat = new THREE.MeshBasicMaterial({
+            map: sunTex,
+            color: 0xffffff // Let texture define color
+        });
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+
         sun.userData = { name: 'SUN', isSystem: true, baseScale: 2000 };
         this.group.add(sun);
         this.targetables.push(sun);
 
         // Add point light for the sun
-        const sunLight = new THREE.PointLight(0xffffff, 28.75, 5000000, 0.5);
+        const sunLight = new THREE.PointLight(0xffffff, 6.0, 5000000, 0.5); // 1.5x brighter (was 4.0)
         this.group.add(sunLight);
 
-        // PLANETS — Realistic colors
+        // Add ambient light to boost overall brightness
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Add base visibility
+        this.group.add(ambientLight);
+
+        // SUN HALO
+        const haloTexture = this.createHaloTexture();
+        const haloMaterial = new THREE.SpriteMaterial({
+            map: haloTexture,
+            color: 0xffaa33,
+            transparent: true,
+            opacity: 1.0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const sunHalo = new THREE.Sprite(haloMaterial);
+        sunHalo.scale.set(24000, 24000, 1);
+        this.group.add(sunHalo);
+
+        // Texture Loading Helper
+        const loadTex = (path) => {
+            return path ? loader.load(path) : null;
+        };
+
+        // PLANETS — Realistic colors & Rotation Speeds & Orbit Speeds
         const planetData = [
-            { size: 50, dist: 4000, c1: '#8c8c8c', c2: '#5a5a5a', name: 'MERCURY' },       // Grey rocky
-            { size: 120, dist: 6000, c1: '#e8cda0', c2: '#c9a84c', name: 'VENUS' },         // Pale yellow-tan
-            { size: 130, dist: 8000, c1: '#1a6fdb', c2: '#2d8f4e', name: 'EARTH' },         // Ocean blue + land green
-            { size: 70, dist: 10000, c1: '#c1440e', c2: '#8b3a0e', name: 'MARS' },          // Rusty red-orange
-            { size: 1400, dist: 16000, c1: '#d4a56a', c2: '#a0744a', name: 'JUPITER' },     // Tan-orange bands
-            { size: 1200, dist: 22000, c1: '#e8d191', c2: '#c4a35a', name: 'SATURN', hasRings: true }, // Gold-tan
-            { size: 500, dist: 28000, c1: '#a8e0e8', c2: '#6bb8c4', name: 'URANUS' },       // Pale cyan
-            { size: 480, dist: 32000, c1: '#3355cc', c2: '#1a2d8f', name: 'NEPTUNE' }       // Deep blue
+            {
+                name: 'MERCURY',
+                size: 50,
+                dist: 4000,
+                texturePath: null,
+                c1: '#8c8c8c', c2: '#5a5a5a',
+                rotSpeed: 0.01,
+                orbitSpeed: 5.0 // Very Fast
+            },
+            {
+                name: 'VENUS',
+                size: 120,
+                dist: 6000,
+                texturePath: '/textures/planets/venus.jpg',
+                rotSpeed: -0.005,
+                orbitSpeed: 3.5 // Fast
+            },
+            {
+                name: 'EARTH',
+                size: 130,
+                dist: 8000,
+                texturePath: '/textures/planets/earth_day.jpg',
+                normalPath: '/textures/planets/earth_normal.jpg',
+                hasClouds: true,
+                rotSpeed: 0.5,
+                orbitSpeed: 2.5 // Baseline
+            },
+            {
+                name: 'MARS',
+                size: 70,
+                dist: 10000,
+                texturePath: '/textures/planets/mars.jpg',
+                rotSpeed: 0.48,
+                orbitSpeed: 2.0 // Slower than Earth
+            },
+            {
+                name: 'JUPITER',
+                size: 1400,
+                dist: 16000,
+                texturePath: '/textures/planets/jupiter.jpg',
+                rotSpeed: 1.2,
+                orbitSpeed: 0.8 // Slow
+            },
+            {
+                name: 'SATURN',
+                size: 1200,
+                dist: 22000,
+                texturePath: '/textures/planets/saturn.png',
+                hasRings: true,
+                rotSpeed: 1.1,
+                orbitSpeed: 0.5 // Slower
+            },
+            {
+                name: 'URANUS',
+                size: 500,
+                dist: 28000,
+                texturePath: '/textures/planets/uranus.jpg',
+                rotSpeed: -0.7,
+                orbitSpeed: 0.3, // Very Slow
+                hasRings: true
+            },
+            {
+                name: 'NEPTUNE',
+                size: 480,
+                dist: 32000,
+                texturePath: null,
+                c1: '#3355cc', c2: '#1a2d8f',
+                rotSpeed: 0.8,
+                orbitSpeed: 0.2 // Crawling
+            }
         ];
 
         this.planets = [];
         planetData.forEach(p => {
-            const planet = this.createPlanetMesh(p.size, p.dist, p.c1, p.c2, p.name);
-            if (p.hasRings) this.addSaturnRings(planet, p.size);
+            const texture = p.texturePath ? loader.load(p.texturePath) : null;
+            const normal = p.normalPath ? loader.load(p.normalPath) : null;
+
+            // Pass orbitSpeed to createPlanetMesh
+            const planet = this.createPlanetMesh(p.size, p.dist, p.c1, p.c2, p.name, texture, normal, p.rotSpeed, p.orbitSpeed);
+
+            if (p.hasRings) {
+                if (p.name === 'SATURN') {
+                    this.addSaturnRings(planet, p.size);
+                } else if (p.name === 'URANUS') {
+                    this.addUranusRings(planet, p.size);
+                }
+            }
+            if (p.hasClouds) this.addEarthClouds(planet, p.size);
+
+            // Add Moon for Earth
+            if (p.name === 'EARTH') {
+                this.addMoon(planet, p.size);
+            }
+
             this.group.add(planet);
             this.planets.push(planet);
             this.targetables.push(planet);
@@ -52,33 +163,160 @@ export class SolarSystem extends BaseSystem {
         this.createAsteroidBelt(3000, 12000, 14000, asteroidTexture);
     }
 
-    createPlanetMesh(size, distance, color1, color2, name) {
+    createPlanetMesh(size, distance, color1, color2, name, texture, normalMap, rotSpeed = 0.5, orbitSpeed = null) {
         const geo = new THREE.SphereGeometry(size, 64, 64);
-        const tex = createNoiseTexture('rock', color1, color2);
-        const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.1 });
+        let mat;
+
+        if (texture) {
+            mat = new THREE.MeshStandardMaterial({
+                map: texture,
+                normalMap: normalMap || null,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+        } else {
+            // Procedural fallback
+            const tex = createNoiseTexture('rock', color1, color2);
+            mat = new THREE.MeshStandardMaterial({
+                map: tex,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+        }
+
+        // Uranus Alignment Fix:
+        // Rotate Geometry Z=90 so poles are on X-axis. 
+        // Then rotating mesh around X-axis will spin it "vertically" (rolling).
+        if (name === 'URANUS') {
+            geo.rotateZ(Math.PI / 2);
+        }
+
         const mesh = new THREE.Mesh(geo, mat);
         const angle = Math.random() * Math.PI * 2;
         mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+
+        // Note: For Uranus, we rotated Geometry, not Mesh. 
+        // So Mesh axes are still aligned Top-Up. 
+        // But Texture pole is pointing X.
+        // If we rotate Mesh around X, it will roll.
+
+        // Use provided orbitSpeed or fallback to keplerian-ish approximation (1/sqrt( dist ))
+        const calculatedSpeed = orbitSpeed !== null ? orbitSpeed : (1 / Math.sqrt(distance)) * 300;
+
         mesh.userData = {
             name: name,
             type: 'planet',
             angle: angle,
             distance: distance,
-            speed: (1 / Math.sqrt(distance)) * 300,
-            rotSpeed: 0.5 + Math.random()
+            speed: calculatedSpeed,
+            rotSpeed: rotSpeed
         };
         return mesh;
     }
 
     addSaturnRings(planet, size) {
-        const ringGeo = new THREE.RingGeometry(size * 1.4, size * 2.2, 64);
-        const ringTex = createNoiseTexture('gas', '#aa8855', '#554433');
+        const loader = new THREE.TextureLoader();
+
+        // === MAIN RING ===
+        // Realistic Proportions:
+        // Planet Radius = size
+        // Ring Start ~ 1.11 - 1.2 x Radius (C Ring / B Ring start)
+        // Ring End ~ 2.3 x Radius (A Ring end)
+        // Setting Inner: 1.15 (Close to planet)
+        // Setting Outer: 2.5 (Wide span)
+        const ringGeo = new THREE.RingGeometry(size * 1.15, size * 2.5, 128);
+        const ringTex = loader.load('/textures/planets/saturn_ring.png');
+        ringTex.rotation = Math.PI / 2;
+        ringTex.center.set(0.5, 0.5);
+
         const ringMat = new THREE.MeshStandardMaterial({
-            map: ringTex, side: THREE.DoubleSide, transparent: true, opacity: 0.8
+            map: ringTex,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 1.0,
+            roughness: 0.6,
+            metalness: 0.1,
+            emissive: 0x050505,
+            color: 0xffeedd
         });
+
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
+        ring.rotation.x = Math.PI / 2; // Lie Flat
+        ring.castShadow = true;
+        ring.receiveShadow = true;
         planet.add(ring);
+    }
+
+    addUranusRings(planet, size) {
+        const loader = new THREE.TextureLoader();
+        // Uranus Rings
+        const ringGeo = new THREE.RingGeometry(size * 1.8, size * 3.0, 64);
+
+        const ringTex = loader.load('/textures/planets/saturn_ring.png');
+        ringTex.rotation = Math.PI / 2;
+        ringTex.center.set(0.5, 0.5);
+
+        const ringMat = new THREE.MeshStandardMaterial({
+            map: ringTex,
+            color: 0x88aabb,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.45,
+            roughness: 0.8
+        });
+
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        // Align with Equator (since Planet is tilted Z=90, Equator is vertical)
+        // Ring defined in XY plane (RingGeometry faces Z). 
+        // We want Ring to face X (to be in YZ plane).
+        ring.rotation.y = Math.PI / 2;
+
+        planet.add(ring);
+    }
+
+    addEarthClouds(planet, size) {
+        const loader = new THREE.TextureLoader();
+        const cloudGeo = new THREE.SphereGeometry(size * 1.01, 64, 64);
+        const cloudTex = loader.load('/textures/planets/earth_clouds.png');
+
+        const cloudMat = new THREE.MeshStandardMaterial({
+            map: cloudTex,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+        clouds.userData = { isCloud: true };
+        planet.add(clouds);
+        planet.userData.clouds = clouds; // Reference for animation
+    }
+
+    addMoon(earth, earthSize) {
+        const loader = new THREE.TextureLoader();
+        const moonSize = earthSize * 0.27;
+        const moonDist = earthSize * 4; // Scaled down distance for visibility relative to game scale
+
+        const moonGeo = new THREE.SphereGeometry(moonSize, 32, 32);
+        const moonTex = loader.load('/textures/planets/moon.jpg');
+
+        const moonMat = new THREE.MeshStandardMaterial({
+            map: moonTex,
+            roughness: 0.9,
+            metalness: 0.0
+        });
+
+        const moon = new THREE.Mesh(moonGeo, moonMat);
+        moon.position.set(moonDist, 0, 0); // Start position relative to Earth
+
+        // Moon orbit group
+        const moonGroup = new THREE.Group();
+        earth.add(moonGroup); // Add group to Earth so it follows Earth
+        moonGroup.add(moon);
+
+        earth.userData.moonGroup = moonGroup; // For animation
     }
 
     createAsteroidBelt(count, minRadius, maxRadius, texture) {
@@ -121,7 +359,25 @@ export class SolarSystem extends BaseSystem {
                 data.angle += data.speed * delta * 0.1;
                 planet.position.x = Math.cos(data.angle) * data.distance;
                 planet.position.z = Math.sin(data.angle) * data.distance;
-                planet.rotation.y += data.rotSpeed * delta;
+
+                // Rotation on axis
+                if (planet.userData.name === 'URANUS') {
+                    // Geometric rotation (Z=90) was applied to Geometry, OR we apply rotation X to Mesh
+                    // To Roll: Rotate around Mesh's X axis (which is aligned with Orbit if Z=0, Y=0)
+                    planet.rotateX(data.rotSpeed * delta);
+                } else {
+                    planet.rotation.y += data.rotSpeed * delta;
+                }
+
+                // Animate Clouds
+                if (data.clouds) {
+                    data.clouds.rotation.y += delta * 0.05;
+                }
+
+                // Animate Moon
+                if (data.moonGroup) {
+                    data.moonGroup.rotation.y += delta * 0.5; // Orbit Earth
+                }
             });
         }
 
@@ -138,5 +394,20 @@ export class SolarSystem extends BaseSystem {
             }
             this.asteroidMesh.instanceMatrix.needsUpdate = true;
         }
+    }
+    createHaloTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.2, 'rgba(255, 200, 150, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(255, 100, 50, 0.2)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 128, 128);
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
     }
 }

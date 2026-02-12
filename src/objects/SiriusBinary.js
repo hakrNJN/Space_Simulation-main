@@ -48,6 +48,27 @@ export class SiriusBinary extends BaseSystem {
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.rotation.x = Math.PI / 2;
         this.group.add(trail);
+
+        // Reuse Texture: Add "Sirius Prime" Planet
+        // Using Mars texture for a scorched, rocky look
+        const loader = new THREE.TextureLoader();
+        const pGeo = new THREE.SphereGeometry(300, 64, 64);
+        const pTex = loader.load('/textures/planets/mars.jpg');
+        const pMat = new THREE.MeshStandardMaterial({ map: pTex, roughness: 0.8 });
+
+        this.siriusPlanet = new THREE.Mesh(pGeo, pMat);
+        const pDist = 5000; // Farther out
+        this.siriusPlanet.userData = {
+            name: 'SIRIUS PRIME',
+            type: 'planet',
+            dist: pDist,
+            angle: Math.random() * Math.PI * 2,
+            speed: 0.3,
+            rotSpeed: 0.6
+        };
+        this.siriusPlanet.position.set(pDist, 0, 0);
+        this.group.add(this.siriusPlanet);
+        this.targetables.push(this.siriusPlanet);
     }
 
     update(delta, time) {
@@ -61,5 +82,14 @@ export class SiriusBinary extends BaseSystem {
         // Sirius B orbits opposite
         this.siriusB.position.x = -Math.cos(this.orbitAngle) * this.orbitRadius;
         this.siriusB.position.z = -Math.sin(this.orbitAngle) * this.orbitRadius;
+
+        // Update Planet
+        if (this.siriusPlanet) {
+            const sd = this.siriusPlanet.userData;
+            sd.angle += sd.speed * delta * 0.5;
+            this.siriusPlanet.position.x = Math.cos(sd.angle) * sd.dist;
+            this.siriusPlanet.position.z = Math.sin(sd.angle) * sd.dist;
+            this.siriusPlanet.rotation.y += sd.rotSpeed * delta;
+        }
     }
 }

@@ -68,11 +68,48 @@ export class Vega extends BaseSystem {
         disk.rotation.x = Math.PI / 6; // Tilted disk
         this.debrisDisk = disk;
         this.group.add(disk);
+
+        // Add Hypothetical Planet "Vega b"
+        // Using reused texture (e.g., Uranus or Jupiter look-alike)
+        const loader = new THREE.TextureLoader();
+        const planetGeo = new THREE.SphereGeometry(600, 64, 64);
+        const planetTex = loader.load('/textures/planets/uranus.jpg'); // Reuse Uranus texture for a cold dust planet
+        const planetMat = new THREE.MeshStandardMaterial({
+            map: planetTex,
+            roughness: 0.9
+        });
+        this.vegaPlanet = new THREE.Mesh(planetGeo, planetMat);
+
+        // Initial position
+        const dist = 6000;
+        this.vegaPlanet.position.set(dist, 0, 0);
+        this.vegaPlanet.userData = {
+            name: 'VEGA b',
+            type: 'planet',
+            angle: 0,
+            dist: dist,
+            speed: 0.2,
+            rotSpeed: 0.8
+        };
+
+        // Tilt orbit to match disk
+        this.vegaPlanetGroup = new THREE.Group();
+        this.vegaPlanetGroup.rotation.x = Math.PI / 6;
+        this.vegaPlanetGroup.add(this.vegaPlanet);
+        this.group.add(this.vegaPlanetGroup);
+        this.targetables.push(this.vegaPlanet);
     }
 
     update(delta, time) {
         if (this.debrisDisk) {
             this.debrisDisk.rotation.y += delta * 0.02;
+        }
+        if (this.vegaPlanet) {
+            const data = this.vegaPlanet.userData;
+            data.angle += data.speed * delta;
+            this.vegaPlanet.position.x = Math.cos(data.angle) * data.dist;
+            this.vegaPlanet.position.z = Math.sin(data.angle) * data.dist;
+            this.vegaPlanet.rotation.y += data.rotSpeed * delta;
         }
     }
 }

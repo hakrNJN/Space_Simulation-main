@@ -32,7 +32,8 @@ export class ProximaCentauri extends BaseSystem {
 
     createProximaB() {
         const geo = new THREE.SphereGeometry(100, 64, 64);
-        const tex = createNoiseTexture('rock', '#664422', '#332211');
+        const loader = new THREE.TextureLoader();
+        const tex = loader.load('/textures/planets/proxima_b.jpg');
         const mat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.8,

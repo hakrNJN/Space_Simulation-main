@@ -35,8 +35,16 @@ export class Trappist1 extends BaseSystem {
         ];
 
         this.planets = [];
+        const loader = new THREE.TextureLoader();
+        const tex1e = loader.load('/textures/planets/kepler452b.jpg'); // Earth-like for 1e
+        const tex1b = loader.load('/textures/planets/kepler7b.jpg');   // Hot for 1b
+
         planetConfigs.forEach((config, index) => {
-            const planet = this.createPlanetMesh(config);
+            let specificTex = null;
+            if (config.name === 'TRAPPIST-1e') specificTex = tex1e;
+            if (config.name === 'TRAPPIST-1b') specificTex = tex1b;
+
+            const planet = this.createPlanetMesh(config, specificTex);
             // Offset starting angles for visual variety
             planet.userData.angle = (index / 7) * Math.PI * 2;
             planet.position.x = Math.cos(planet.userData.angle) * config.dist;
@@ -47,9 +55,13 @@ export class Trappist1 extends BaseSystem {
         });
     }
 
-    createPlanetMesh(config) {
+    createPlanetMesh(config, specificTex) {
         const geo = new THREE.SphereGeometry(config.size, 64, 64);
-        const tex = createNoiseTexture('rock', config.c1, config.c2);
+        let tex = specificTex;
+        if (!tex) {
+            tex = createNoiseTexture('rock', config.c1, config.c2);
+        }
+
         const mat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.7,
