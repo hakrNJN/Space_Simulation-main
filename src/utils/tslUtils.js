@@ -31,14 +31,7 @@ export const rotateAxis = Fn(([axis_immutable, angle_immutable]) => {
         oc.mul(axis.y).mul(axis.z).add(axis.x.mul(s)),
         oc.mul(axis.z).mul(axis.z).add(c)
     );
-}).setLayout({
-    name: 'rotateAxis',
-    type: 'mat3',
-    inputs: [
-        { name: 'axis', type: 'vec3' },
-        { name: 'angle', type: 'float' }
-    ]
-});
+}, { axis: 'vec3', angle: 'float', return: 'mat3' });
 
 /**
  * Convert vector to scalar factor (luminance)
@@ -61,17 +54,7 @@ export const smoothRange = Fn(([value, inMin, inMax, outMin, outMax]) => {
     const t = clamp((value.sub(inMin)).div(inMax.sub(inMin)), 0.0, 1.0);
     const smoothT = t.mul(t).mul(float(3.0).sub(t.mul(2.0))); // smoothstep curve
     return mix(outMin, outMax, smoothT);
-}).setLayout({
-    name: 'smoothRange',
-    type: 'float',
-    inputs: [
-        { name: 'value', type: 'float' },
-        { name: 'inMin', type: 'float' },
-        { name: 'inMax', type: 'float' },
-        { name: 'outMin', type: 'float' },
-        { name: 'outMax', type: 'float' }
-    ]
-});
+}, { value: 'float', inMin: 'float', inMax: 'float', outMin: 'float', outMax: 'float', return: 'float' });
 
 /**
  * White noise 2D
@@ -84,17 +67,7 @@ export const whiteNoise2D = (coord) =>
  */
 const CatmulRom = Fn(([T, D, C, B, A]) => {
     return mul(0.5, mul(2.0, B).add(A.negate().add(C).mul(T)).add(mul(2.0, A).sub(mul(5.0, B)).add(mul(4.0, C)).sub(D).mul(T).mul(T)).add(A.negate().add(mul(3.0, B)).sub(mul(3.0, C)).add(D).mul(T).mul(T).mul(T)));
-}).setLayout({
-    name: 'CatmulRom',
-    type: 'vec3',
-    inputs: [
-        { name: 'T', type: 'float' },
-        { name: 'D', type: 'vec3' },
-        { name: 'C', type: 'vec3' },
-        { name: 'B', type: 'vec3' },
-        { name: 'A', type: 'vec3' }
-    ]
-});
+}, { T: 'float', D: 'vec3', C: 'vec3', B: 'vec3', A: 'vec3', return: 'vec3' });
 
 /**
  * Color ramp with 3 control points using B-Spline interpolation
@@ -121,16 +94,7 @@ export const ColorRamp3_BSpline = Fn(([T, A, B, C]) => {
     });
 
     return cC.xyz;
-}).setLayout({
-    name: 'ColorRamp3_BSpline',
-    type: 'vec3',
-    inputs: [
-        { name: 'T', type: 'float' },
-        { name: 'A', type: 'vec4' },
-        { name: 'B', type: 'vec4' },
-        { name: 'C', type: 'vec4' }
-    ]
-});
+}, { T: 'float', A: 'vec4', B: 'vec4', C: 'vec4', return: 'vec3' });
 
 /**
  * sRGB to Linear color space conversion

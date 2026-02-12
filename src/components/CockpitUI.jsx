@@ -11,7 +11,10 @@ const CockpitUI = () => {
         targetName: 'SOLAR',
         targetDist: 0,
         heading: 0,
-        nearbySystems: []
+        nearbySystems: [],
+        zone: 'normal',
+        zoneTransition: 0,
+        distanceFromCenter: 0
     });
 
     useEffect(() => {
@@ -36,7 +39,10 @@ const CockpitUI = () => {
                     targetName: data.nearestSystem || 'VOID',
                     targetDist: (data.nearestDistance / 1000).toFixed(1),
                     heading: data.heading || 0,
-                    nearbySystems: data.nearbySystems || []
+                    nearbySystems: data.nearbySystems || [],
+                    zone: data.zone || 'normal',
+                    zoneTransition: data.zoneTransition || 0,
+                    distanceFromCenter: data.distanceFromCenter || 0
                 });
             });
         };
@@ -65,6 +71,46 @@ const CockpitUI = () => {
                 W: Cruise Forward<br />
                 S: Reverse/Brake<br />
                 SHIFT: Boost (10x)
+            </div>
+
+            {/* Teleport Buttons */}
+            <div className="teleport-buttons">
+                <button 
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // Teleport to Solar System
+                            engineRef.current.camera.position.set(1350000, 15000, 1850000);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    📍 SOLAR SYSTEM
+                </button>
+                <button 
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // Teleport to Galactic Center (transition zone)
+                            engineRef.current.camera.position.set(50000, 5000, 50000);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    📍 GALACTIC CENTER
+                </button>
+                <button 
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // Teleport to Black Hole Zone
+                            engineRef.current.camera.position.set(15000, 2000, 15000);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    📍 BLACK HOLE
+                </button>
             </div>
 
             {/* Mobile Touch Controls - Cruise & Brake */}
@@ -133,6 +179,28 @@ const CockpitUI = () => {
                                 <div className="label">STATUS</div>
                                 <div className="data-value" style={{ color: '#0f0' }}>NOMINAL</div>
                             </div>
+                            {/* DEV: Distance from Galactic Center */}
+                            <div className="data-row" style={{ marginTop: '10px', borderTop: '1px solid rgba(0,255,255,0.2)', paddingTop: '5px' }}>
+                                <div className="label" style={{ color: '#ff0' }}>GC DIST</div>
+                                <div className="data-value" style={{ 
+                                    color: hudData.zone === 'blackhole' ? '#f00' : 
+                                           hudData.zone === 'outer' ? '#ff0' : '#0ff',
+                                    fontSize: '14px'
+                                }}>
+                                    {hudData.distanceFromCenter.toFixed(0)} u
+                                </div>
+                            </div>
+                            {hudData.zone !== 'normal' && (
+                                <div className="data-row">
+                                    <div className="label" style={{ color: '#ff0' }}>ZONE</div>
+                                    <div className="data-value" style={{ 
+                                        color: hudData.zone === 'blackhole' ? '#f00' : '#ff0',
+                                        fontSize: '12px'
+                                    }}>
+                                        {hudData.zone === 'outer' ? 'OUTER' : 'BH ZONE'}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Center Panel - Radar */}
@@ -187,6 +255,16 @@ const CockpitUI = () => {
                                 <div className="data-value data-big">{hudData.speed}</div>
                                 <div className="unit" style={{ alignSelf: 'flex-end', marginBottom: '5px' }}>KM/S</div>
                             </div>
+                            {hudData.zone !== 'normal' && (
+                                <div className="data-row" style={{ justifyContent: 'flex-end', marginTop: '10px' }}>
+                                    <div className="data-value" style={{ 
+                                        color: hudData.zone === 'blackhole' ? '#ff0' : '#f80',
+                                        fontSize: '12px'
+                                    }}>
+                                        {hudData.zone === 'outer' ? 'OUTER ZONE' : 'BH ZONE'}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                     </div>

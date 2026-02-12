@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { createNoiseTexture, createStarTexture, createRadialTexture } from '../utils/textureUtils';
-import { createAllSystems, SYSTEM_POSITIONS } from '../objects/index.js';
+import { createAllSystems, SYSTEM_POSITIONS, SingularityBlackHole } from '../objects/index.js';
 import { createRenderer } from '../utils/rendererFactory.js';
 import { adaptMaterial } from '../utils/materialAdapter.js';
+import { GalacticZones } from '../objects/GalacticZones.js';
 
 /**
  * SpaceEngine - Main 3D engine class
@@ -99,7 +100,9 @@ export class SpaceEngine {
             }
             
             this.initSystems();
+            await this.initBlackHole();
             this.initBackdrop();
+            this.initGalacticZones();
             this.initInput();
             
             // Set initialized BEFORE starting animation loop
@@ -199,6 +202,29 @@ export class SpaceEngine {
     }
 
     /**
+     * Initialize Singularity Black Hole at galactic center
+     */
+    async initBlackHole() {
+        try {
+            console.log('→ Initializing Singularity Black Hole...');
+            
+            this.blackHole = new SingularityBlackHole(this);
+            console.log('  - Black hole instance created');
+            
+            await this.blackHole.build();
+            console.log('  - Black hole build complete');
+            
+            // Add to systems array for update loop
+            this.systems.push(this.blackHole);
+            
+            console.log('✓ Singularity Black Hole initialized at galactic center');
+        } catch (error) {
+            console.error('❌ Failed to initialize black hole:', error);
+            console.error('Error stack:', error.stack);
+        }
+    }
+
+    /**
      * Background star field that follows camera
      */
     initBackdrop() {
@@ -252,7 +278,12 @@ export class SpaceEngine {
         // Adapt material for current renderer (WebGPU or WebGL)
         const mat = adaptMaterial(baseMat, this.isWebGPU);
 
-        this.starBackdrop.add(new THREE.Points(geo, mat));
+        const starPoints = new THREE.Points(geo, mat);
+        starPoints.name = 'StarBackdrop';
+        this.starBackdrop.add(starPoints);
+        
+        // Store reference for zone system
+        this.starBackdropPoints = starPoints;
 
         // ===== DUST PARTICLES (small white/gray, non-glowing) =====
         this.createDustLayer();
@@ -300,7 +331,54 @@ export class SpaceEngine {
         // Adapt material for current renderer (WebGPU or WebGL)
         const dustMat = adaptMaterial(baseDustMat, this.isWebGPU);
 
-        this.starBackdrop.add(new THREE.Points(dustGeo, dustMat));
+        const dustPoints = new THREE.Points(dustGeo, dustMat);
+        dustPoints.name = 'DustLayer';
+        this.starBackdrop.add(dustPoints);
+        
+        // Store reference for zone system
+        this.dustLayerPoints = dustPoints;
+    }
+
+    /**
+     * Initialize Galactic Zone system for performance optimization
+     * near the galactic center
+     */
+    initGalacticZones() {
+        console.log('→ Initializing Galactic Zones...');
+        
+        this.galacticZones = new GalacticZones(this);
+        
+        // Register dynamic particles that should fade out
+        if (this.starBackdropPoints) {
+            this.galacticZones.registerDynamicParticles(this.starBackdropPoints);
+        }
+        if (this.dustLayerPoints) {
+            this.galacticZones.registerDynamicParticles(this.dustLayerPoints);
+        }
+        
+        // Register galaxy particles from all systems
+        this.scene.traverse((child) => {
+            if (child.isPoints && child.name && 
+                (child.name.includes('Galaxy') || 
+                 child.name.includes('Stars') || 
+                 child.name.includes('Dust'))) {
+                this.galacticZones.registerDynamicParticles(child);
+            }
+        });
+        
+        // Register nebulas (they should be visible in outer zone only)
+        this.scene.traverse((child) => {
+            if (child.name && child.name.includes('Nebula')) {
+                this.galacticZones.registerNebula(child);
+            }
+        });
+        
+        // Create static background sphere
+        this.galacticZones.createStaticBackground();
+        
+        console.log('✓ Galactic Zones initialized');
+        console.log(`  - Registered ${this.galacticZones.dynamicParticles.length} dynamic particle systems`);
+        console.log(`  - Registered ${this.galacticZones.nebulas.length} nebula objects`);
     }
 
     /**
@@ -487,6 +565,11 @@ export class SpaceEngine {
         this.systems.forEach(system => {
             system.update(delta, this.state.time, this.camera.position);
         });
+        
+        // =========== UPDATE GALACTIC ZONES ===========
+        if (this.galacticZones) {
+            this.galacticZones.update();
+        }
 
         // =========== BACKDROP FOLLOWS CAMERA ===========
         if (this.starBackdrop) {
@@ -508,6 +591,8 @@ export class SpaceEngine {
         if (this.onUpdate) {
             const nearest = this.getNearestSystem();
             const nearbySystems = this.getNearbySystems();
+            const zoneInfo = this.galacticZones ? this.galacticZones.getZoneInfo() : { zone: 'normal', transitionFactor: 0 };
+            const distanceFromCenter = this.camera.position.length();
 
             this.onUpdate({
                 speed: Math.abs(this.state.speed),
@@ -518,7 +603,10 @@ export class SpaceEngine {
                 nearestSystem: nearest.system ? nearest.system.name : 'VOID',
                 nearestDistance: nearest.distance,
                 nearbySystems: nearbySystems,
-                planets: this.allTargetables
+                planets: this.allTargetables,
+                zone: zoneInfo.zone,
+                zoneTransition: zoneInfo.transitionFactor,
+                distanceFromCenter: distanceFromCenter
             });
         }
     }

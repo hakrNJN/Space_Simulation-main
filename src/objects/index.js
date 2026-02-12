@@ -7,6 +7,7 @@
 import { BaseSystem } from './BaseSystem.js';
 import { SolarSystem } from './SolarSystem.js';
 import { SagittariusAStar } from './SagittariusAStar.js';
+import { SingularityBlackHole } from './SingularityBlackHole.js';
 import { ProximaCentauri } from './ProximaCentauri.js';
 import { SiriusBinary } from './SiriusBinary.js';
 import { Trappist1 } from './Trappist1.js';
@@ -27,6 +28,7 @@ export {
     BaseSystem,
     SolarSystem,
     SagittariusAStar,
+    SingularityBlackHole,
     ProximaCentauri,
     SiriusBinary,
     Trappist1,
@@ -67,7 +69,8 @@ export function createAllSystems() {
         new GalaxyDistanceLOD(),  // Heavy Density Layer (Visible at Distance)
 
         // === Galactic Center ===
-        new SagittariusAStar(),
+        // TODO: Replace with Singularity black hole
+        // new SagittariusAStar(),
 
         // === Star Systems (Milky Way disk) ===
         new SolarSystem(),

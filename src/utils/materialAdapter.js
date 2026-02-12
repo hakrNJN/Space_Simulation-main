@@ -83,6 +83,12 @@ function convertMeshStandardMaterial(material) {
     nodeMaterial.depthWrite = material.depthWrite;
     nodeMaterial.depthTest = material.depthTest;
     
+    // WebGPU requires premultiplied alpha for proper blending
+    // Enable for transparent or blended materials
+    if (material.transparent || material.blending !== THREE.NormalBlending) {
+        nodeMaterial.premultipliedAlpha = true;
+    }
+    
     // Copy vertex colors
     nodeMaterial.vertexColors = material.vertexColors;
     
@@ -115,6 +121,12 @@ function convertMeshBasicMaterial(material) {
     nodeMaterial.side = material.side;
     nodeMaterial.depthWrite = material.depthWrite;
     nodeMaterial.depthTest = material.depthTest;
+    
+    // WebGPU requires premultiplied alpha for proper blending
+    // Enable for transparent or blended materials
+    if (material.transparent || material.blending !== THREE.NormalBlending) {
+        nodeMaterial.premultipliedAlpha = true;
+    }
     
     // Copy vertex colors
     nodeMaterial.vertexColors = material.vertexColors;
@@ -149,6 +161,10 @@ function convertPointsMaterial(material) {
     nodeMaterial.depthWrite = material.depthWrite;
     nodeMaterial.depthTest = material.depthTest;
     
+    // WebGPU requires premultiplied alpha for proper blending
+    // This is especially critical for additive blending
+    nodeMaterial.premultipliedAlpha = true;
+    
     // Copy vertex colors
     nodeMaterial.vertexColors = material.vertexColors;
     
@@ -179,6 +195,10 @@ function convertSpriteMaterial(material) {
     nodeMaterial.blending = material.blending;
     nodeMaterial.depthWrite = material.depthWrite;
     nodeMaterial.depthTest = material.depthTest;
+    
+    // WebGPU requires premultiplied alpha for proper blending
+    // This is especially critical for additive blending
+    nodeMaterial.premultipliedAlpha = true;
     
     // Copy fog
     nodeMaterial.fog = material.fog;

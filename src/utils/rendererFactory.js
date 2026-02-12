@@ -30,8 +30,7 @@ import * as ThreeWebGPU from 'three/webgpu';
 export async function createRenderer(config) {
     const { width, height, antialias = true, logarithmicDepthBuffer = true } = config;
     
-    // TEMPORARY: Disable WebGPU until blending issues are resolved
-    // TODO: Fix additive blending for PointsNodeMaterial in WebGPU
+    // Disable WebGPU temporarily - black hole shader needs more work
     const ENABLE_WEBGPU = false;
     
     // Check if WebGPU is available

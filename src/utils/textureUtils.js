@@ -37,7 +37,11 @@ export function createNoiseTexture(type, color1, color2) {
         buffer32[i] = (255 << 24) | ((b * 255) << 16) | ((g * 255) << 8) | ((r * 255));
     }
     ctx.putImageData(idata, 0, 0);
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // Canvas textures are already premultiplied by the browser
+    // Tell Three.js not to premultiply again
+    texture.premultiplyAlpha = false;
+    return texture;
 }
 
 /**
@@ -61,7 +65,11 @@ export function createRadialTexture() {
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // Canvas textures are already premultiplied by the browser
+    // Tell Three.js not to premultiply again
+    texture.premultiplyAlpha = false;
+    return texture;
 }
 
 /**
@@ -86,7 +94,11 @@ export function createStarTexture() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // Canvas textures are already premultiplied by the browser
+    // Tell Three.js not to premultiply again
+    texture.premultiplyAlpha = false;
+    return texture;
 }
 
 /**
@@ -111,7 +123,11 @@ export function createDustTexture() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // Canvas textures are already premultiplied by the browser
+    // Tell Three.js not to premultiply again
+    texture.premultiplyAlpha = false;
+    return texture;
 }
 
 /**
@@ -147,5 +163,9 @@ export function createIrregularTexture() {
         ctx.fill();
     }
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // Canvas textures are already premultiplied by the browser
+    // Tell Three.js not to premultiply again
+    texture.premultiplyAlpha = false;
+    return texture;
 }
