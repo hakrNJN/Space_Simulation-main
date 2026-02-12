@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as ThreeWebGPU from 'three/webgpu';
 
 /**
  * Adapts Three.js materials for WebGPU compatibility
@@ -49,7 +50,7 @@ export function adaptMaterial(material, isWebGPU) {
  * Preserves all standard material properties including textures, colors, and PBR parameters
  */
 function convertMeshStandardMaterial(material) {
-    const nodeMaterial = new THREE.MeshStandardNodeMaterial();
+    const nodeMaterial = new ThreeWebGPU.MeshStandardNodeMaterial();
     
     // Copy basic properties
     nodeMaterial.name = material.name;
@@ -98,7 +99,7 @@ function convertMeshStandardMaterial(material) {
  * Preserves color, textures, and rendering properties
  */
 function convertMeshBasicMaterial(material) {
-    const nodeMaterial = new THREE.MeshBasicNodeMaterial();
+    const nodeMaterial = new ThreeWebGPU.MeshBasicNodeMaterial();
     
     // Copy basic properties
     nodeMaterial.name = material.name;
@@ -130,7 +131,7 @@ function convertMeshBasicMaterial(material) {
  * Preserves particle size, textures, colors, and blending modes
  */
 function convertPointsMaterial(material) {
-    const nodeMaterial = new THREE.PointsNodeMaterial();
+    const nodeMaterial = new ThreeWebGPU.PointsNodeMaterial();
     
     // Copy basic properties
     nodeMaterial.name = material.name;
@@ -162,7 +163,7 @@ function convertPointsMaterial(material) {
  * Preserves sprite textures, colors, and blending modes
  */
 function convertSpriteMaterial(material) {
-    const nodeMaterial = new THREE.SpriteNodeMaterial();
+    const nodeMaterial = new ThreeWebGPU.SpriteNodeMaterial();
     
     // Copy basic properties
     nodeMaterial.name = material.name;

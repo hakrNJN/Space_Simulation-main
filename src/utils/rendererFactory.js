@@ -1,22 +1,19 @@
 import * as THREE from 'three';
+import WebGPU from 'three/examples/jsm/capabilities/WebGPU.js';
+import * as ThreeWebGPU from 'three/webgpu';
 
 /**
  * Renderer Factory
  * 
- * NOTE: WebGPU Support Status
- * ---------------------------
- * Three.js r160 includes WebGPU support, but it requires importing from 'three/webgpu' or
- * 'three/addons/renderers/webgpu/WebGPURenderer.js' rather than the main 'three' export.
+ * WebGPU Support Status
+ * ---------------------
+ * Three.js v0.180.0 includes full WebGPU support via 'three/webgpu' module.
+ * This factory will attempt to use WebGPU if available, falling back to WebGL.
  * 
- * The infrastructure for WebGPU is in place (material adapter, TSL shader foundation),
- * but currently using WebGL as the primary renderer for stability.
- * 
- * To enable WebGPU in the future:
- * 1. Import WebGPURenderer from the appropriate module
- * 2. Uncomment the WebGPU initialization code below
- * 3. Test with the TSL black hole shader implementation
- * 
- * Current behavior: Always returns WebGL renderer with isWebGPU: false
+ * WebGPU is required for:
+ * - TSL (Three.js Shading Language) shaders
+ * - Singularity black hole volumetric raymarching
+ * - Advanced node-based materials
  */
 
 /**
@@ -28,24 +25,47 @@ import * as THREE from 'three';
  * @param {number} config.height - Renderer height
  * @param {boolean} config.antialias - Enable antialiasing
  * @param {boolean} config.logarithmicDepthBuffer - Enable logarithmic depth buffer (WebGL only)
- * @returns {Promise<{renderer: THREE.WebGLRenderer, isWebGPU: boolean}>}
+ * @returns {Promise<{renderer: THREE.WebGLRenderer|ThreeWebGPU.WebGPURenderer, isWebGPU: boolean}>}
  */
 export async function createRenderer(config) {
     const { width, height, antialias = true, logarithmicDepthBuffer = true } = config;
     
-    // Note: WebGPU support in Three.js r160 requires importing from 'three/webgpu' or addons
-    // For now, we'll use WebGL as the primary renderer since WebGPU is experimental
-    // To enable WebGPU in the future, import WebGPURenderer from the appropriate module
+    // TEMPORARY: Disable WebGPU until blending issues are resolved
+    // TODO: Fix additive blending for PointsNodeMaterial in WebGPU
+    const ENABLE_WEBGPU = false;
     
-    // Check if WebGPU is available (for future use)
-    const isWebGPUAvailable = typeof navigator !== 'undefined' && navigator.gpu !== undefined;
+    // Check if WebGPU is available
+    const isWebGPUAvailable = ENABLE_WEBGPU && WebGPU.isAvailable();
     
     if (isWebGPUAvailable) {
-        console.log('ℹ WebGPU detected but using WebGL (WebGPU support requires three/webgpu import)');
+        try {
+            console.log('→ Initializing WebGPU renderer');
+            
+            const renderer = new ThreeWebGPU.WebGPURenderer({
+                antialias,
+                forceWebGL: false
+            });
+            
+            // Initialize WebGPU (async operation)
+            await renderer.init();
+            
+            // Configure WebGPU renderer
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            
+            console.log('✓ WebGPU renderer initialized successfully');
+            return { renderer, isWebGPU: true };
+        } catch (error) {
+            console.warn('⚠ WebGPU initialization failed, falling back to WebGL:', error.message);
+        }
+    } else {
+        console.log('ℹ WebGPU not available, using WebGL');
     }
     
-    // WebGL renderer
-    console.log('→ Initializing WebGL renderer');
+    // WebGL fallback
+    console.log('→ Initializing WebGL renderer (fallback mode)');
     
     const renderer = new THREE.WebGLRenderer({
         antialias,
@@ -58,7 +78,7 @@ export async function createRenderer(config) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     
-    console.log('✓ WebGL renderer initialized');
+    console.log('✓ WebGL renderer initialized (compatibility mode)');
     return { renderer, isWebGPU: false };
 }
 
