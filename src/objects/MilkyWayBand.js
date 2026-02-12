@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createStarTexture, createRadialTexture, createNoiseTexture } from '../utils/textureUtils.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 function smoothstep(min, max, value) {
     var x = Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -124,7 +125,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 45000,
             map: texture,
             vertexColors: true,
@@ -133,6 +134,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -185,7 +187,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 5000,
             map: texture,
             vertexColors: true,
@@ -194,6 +196,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -235,7 +238,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 9000, // Larger flares
             map: texture,
             vertexColors: true,
@@ -244,6 +247,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -297,7 +301,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, valid * 3), 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, valid * 3), 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 35000, // HUGE
             map: texture,
             vertexColors: true,
@@ -306,6 +310,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -337,7 +342,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 5000,
             map: texture,
             vertexColors: true,
@@ -346,6 +351,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -384,7 +390,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 6000,
             map: texture,
             vertexColors: true,
@@ -393,6 +399,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -432,7 +439,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 50000, // Very large, blurry
             map: texture,
             vertexColors: true,
@@ -441,6 +448,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -494,7 +502,7 @@ export class MilkyWayBand extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, valid * 3), 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, valid * 3), 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 3500,
             map: texture,
             vertexColors: true,
@@ -503,6 +511,7 @@ export class MilkyWayBand extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 

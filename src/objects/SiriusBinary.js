@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * Sirius Binary - Brightest star in the night sky
@@ -39,12 +40,13 @@ export class SiriusBinary extends BaseSystem {
 
         // Orbit trail visualization
         const trailGeo = new THREE.RingGeometry(this.orbitRadius - 50, this.orbitRadius + 50, 64);
-        const trailMat = new THREE.MeshBasicMaterial({
+        const baseTrailMat = new THREE.MeshBasicMaterial({
             color: 0x4488ff,
             transparent: true,
             opacity: 0.15,
             side: THREE.DoubleSide
         });
+        const trailMat = adaptMaterial(baseTrailMat, this.engine?.isWebGPU);
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.rotation.x = Math.PI / 2;
         this.group.add(trail);
@@ -54,7 +56,8 @@ export class SiriusBinary extends BaseSystem {
         const loader = new THREE.TextureLoader();
         const pGeo = new THREE.SphereGeometry(300, 64, 64);
         const pTex = loader.load('/textures/planets/mars.jpg');
-        const pMat = new THREE.MeshStandardMaterial({ map: pTex, roughness: 0.8 });
+        const basePMat = new THREE.MeshStandardMaterial({ map: pTex, roughness: 0.8 });
+        const pMat = adaptMaterial(basePMat, this.engine?.isWebGPU);
 
         this.siriusPlanet = new THREE.Mesh(pGeo, pMat);
         const pDist = 5000; // Farther out

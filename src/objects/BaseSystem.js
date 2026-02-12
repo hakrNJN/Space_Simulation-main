@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * BaseSystem - Abstract base class for all star systems
@@ -21,9 +22,11 @@ export class BaseSystem {
      * Initialize the system - add all objects to the group
      * @param {THREE.Scene} scene - The main scene
      * @param {Object} textures - Shared texture utilities
+     * @param {Object} engine - Reference to SpaceEngine for accessing isWebGPU flag
      */
-    init(scene, textures) {
+    init(scene, textures, engine) {
         if (this.initialized) return;
+        this.engine = engine; // Store engine reference for material adaptation
         this.build(textures);
         scene.add(this.group);
         this.initialized = true;
@@ -81,7 +84,8 @@ export class BaseSystem {
 
         // Core sphere
         const geo = new THREE.SphereGeometry(radius, 64, 64);
-        const mat = new THREE.MeshBasicMaterial({ color: color });
+        const baseMat = new THREE.MeshBasicMaterial({ color: color });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         starGroup.add(mesh);
 
@@ -98,12 +102,13 @@ export class BaseSystem {
         ctx.fillRect(0, 0, 256, 256);
 
         const tex = new THREE.CanvasTexture(canvas);
-        const spriteMat = new THREE.SpriteMaterial({
+        const baseSpriteMat = new THREE.SpriteMaterial({
             map: tex,
             color: color,
             blending: THREE.AdditiveBlending,
             transparent: true
         });
+        const spriteMat = adaptMaterial(baseSpriteMat, this.engine?.isWebGPU);
         const glow = new THREE.Sprite(spriteMat);
         glow.scale.set(radius * glowScale, radius * glowScale, 1);
         starGroup.add(glow);
@@ -117,11 +122,12 @@ export class BaseSystem {
     createPlanet(radius, distance, color1, color2, textures) {
         const geo = new THREE.SphereGeometry(radius, 64, 64);
         const tex = textures.createNoiseTexture('rock', color1, color2);
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.7,
             metalness: 0.1
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         const angle = Math.random() * Math.PI * 2;
         mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);

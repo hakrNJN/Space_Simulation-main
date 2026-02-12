@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createStarTexture, createRadialTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * BackgroundGalaxies - Procedural alien galaxies
@@ -63,7 +64,7 @@ export class BackgroundGalaxies extends BaseSystem {
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: scale * 0.05, // Relative particle size
             map: texture,
             vertexColors: true,
@@ -72,6 +73,7 @@ export class BackgroundGalaxies extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
 
         const mesh = new THREE.Points(geo, mat);
         mesh.position.copy(pos);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createStarTexture, createRadialTexture, createNoiseTexture } from '../utils/textureUtils.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 function smoothstep(min, max, value) {
     var x = Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -96,7 +97,7 @@ export class Andromeda extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 45000,
             map: texture,
             vertexColors: true,
@@ -105,6 +106,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -145,7 +147,7 @@ export class Andromeda extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 5000,
             map: texture,
             vertexColors: true,
@@ -154,6 +156,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -188,7 +191,7 @@ export class Andromeda extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 9000,
             map: texture,
             vertexColors: true,
@@ -197,6 +200,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -228,7 +232,7 @@ export class Andromeda extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, valid * 3), 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, valid * 3), 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 35000,
             map: texture,
             vertexColors: true,
@@ -237,6 +241,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -267,7 +272,7 @@ export class Andromeda extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, valid * 3), 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, valid * 3), 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 3500,
             map: texture,
             vertexColors: true,
@@ -276,6 +281,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
         this.group.add(new THREE.Points(geo, mat));
     }
 
@@ -287,16 +293,17 @@ export class Andromeda extends BaseSystem {
         // M31* - Andromeda's central supermassive black hole (smaller than Sag A*)
         // Simple dark sphere with faint accretion glow ring
         const bhGeo = new THREE.SphereGeometry(8000, 32, 32);
-        const bhMat = new THREE.MeshBasicMaterial({
+        const baseBhMat = new THREE.MeshBasicMaterial({
             color: 0x000000,
             transparent: false
         });
+        const bhMat = adaptMaterial(baseBhMat, this.engine.isWebGPU);
         const bhMesh = new THREE.Mesh(bhGeo, bhMat);
         this.group.add(bhMesh);
 
         // Faint accretion glow ring around it
         const ringGeo = new THREE.RingGeometry(10000, 25000, 64);
-        const ringMat = new THREE.MeshBasicMaterial({
+        const baseRingMat = new THREE.MeshBasicMaterial({
             color: 0xff6622,
             transparent: true,
             opacity: 0.3,
@@ -304,6 +311,7 @@ export class Andromeda extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const ringMat = adaptMaterial(baseRingMat, this.engine.isWebGPU);
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
         ringMesh.rotation.x = Math.PI * 0.5; // Flat on galactic plane
         this.group.add(ringMesh);

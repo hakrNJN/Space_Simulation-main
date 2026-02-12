@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { createNoiseTexture, createStarTexture, createRadialTexture } from '../utils/textureUtils';
 import { createAllSystems, SYSTEM_POSITIONS } from '../objects/index.js';
+import { createRenderer } from '../utils/rendererFactory.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * SpaceEngine - Main 3D engine class
@@ -58,45 +60,123 @@ export class SpaceEngine {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+        this.isWebGPU = false; // Track renderer type
         this.clock = new THREE.Clock();
         this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
         // Modular Systems
         this.systems = [];
         this.allTargetables = [];
+        
+        // Initialization and lifecycle flags
+        this.initialized = false;
+        this.initializing = false;
+        this.disposed = false;
 
-        this.init();
+        // Start initialization (don't await in constructor)
+        this.init().catch(err => {
+            console.error('SpaceEngine initialization failed:', err);
+        });
     }
 
-    init() {
-        this.initScene();
-        this.initSystems();
-        this.initBackdrop();
-        this.initInput();
-        this.animate = this.animate.bind(this);
-        this.animate();
+    async init() {
+        // Prevent double initialization
+        if (this.initialized || this.initializing) {
+            console.warn('SpaceEngine already initialized or initializing');
+            return;
+        }
+        
+        this.initializing = true;
+        
+        try {
+            await this.initScene();
+            
+            // Only continue if we have a valid scene (not disposed)
+            if (!this.scene || !this.renderer) {
+                console.log('SpaceEngine scene/renderer missing, initialization aborted');
+                this.initializing = false;
+                return;
+            }
+            
+            this.initSystems();
+            this.initBackdrop();
+            this.initInput();
+            
+            // Set initialized BEFORE starting animation loop
+            this.initialized = true;
+            this.initializing = false;
+            
+            this.animate = this.animate.bind(this);
+            this.animate();
+            
+            console.log('✓ SpaceEngine initialization complete');
+        } catch (error) {
+            this.initializing = false;
+            console.error('SpaceEngine initialization error:', error);
+            throw error;
+        }
     }
 
-    initScene() {
+    async initScene() {
+        console.log('→ initScene: Creating scene...');
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x020205);
         this.scene.fog = new THREE.FogExp2(0x000000, 0.0000000005);
+        console.log('→ initScene: Scene created, background:', this.scene.background);
 
         // Camera with huge far plane for space
         this.camera = new THREE.PerspectiveCamera(55, this.width / this.height, 0.1, 2000000000);
         // Start just outside Solar System, looking toward galactic center
         this.camera.position.set(1350000, 15000, 1850000);
         this.camera.lookAt(new THREE.Vector3(0, 0, 0)); // Look toward Sgr A*
+        console.log('→ initScene: Camera created at', this.camera.position);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
-        this.renderer.setSize(this.width, this.height);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.2;
-        this.container.appendChild(this.renderer.domElement);
+        // Create renderer with WebGPU/WebGL detection
+        const { renderer, isWebGPU } = await createRenderer({
+            width: this.width,
+            height: this.height,
+            antialias: true,
+            logarithmicDepthBuffer: true
+        });
+        
+        this.renderer = renderer;
+        this.isWebGPU = isWebGPU;
+        console.log('→ initScene: Renderer created, isWebGPU:', isWebGPU);
+        console.log('→ initScene: Renderer domElement:', this.renderer.domElement);
+        console.log('→ initScene: Canvas dimensions:', {
+            width: this.renderer.domElement.width,
+            height: this.renderer.domElement.height,
+            style: {
+                width: this.renderer.domElement.style.width,
+                height: this.renderer.domElement.style.height
+            }
+        });
+        
+        // Append to DOM
+        if (this.container && this.renderer.domElement) {
+            // Check if there's already a canvas in the container
+            const existingCanvas = this.container.querySelector('canvas');
+            if (existingCanvas) {
+                console.warn('→ initScene: Removing existing canvas from container');
+                this.container.removeChild(existingCanvas);
+            }
+            
+            this.container.appendChild(this.renderer.domElement);
+            console.log('→ initScene: Canvas appended to container');
+            console.log('→ initScene: Container dimensions:', {
+                width: this.container.clientWidth,
+                height: this.container.clientHeight
+            });
+        } else {
+            console.error('→ initScene: Failed to append canvas! container:', this.container, 'domElement:', this.renderer.domElement);
+        }
 
         // Ambient light
-        this.scene.add(new THREE.AmbientLight(0x888888));
+        if (this.scene) {
+            const ambientLight = new THREE.AmbientLight(0x888888);
+            this.scene.add(ambientLight);
+            console.log('→ initScene: Ambient light added, scene children:', this.scene.children.length);
+        }
     }
 
     /**
@@ -110,7 +190,7 @@ export class SpaceEngine {
 
         // Initialize each system
         this.systems.forEach(system => {
-            system.init(this.scene, textures);
+            system.init(this.scene, textures, this);
             // Collect all targetable objects for radar
             this.allTargetables.push(...system.getTargetables());
         });
@@ -159,7 +239,7 @@ export class SpaceEngine {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
+        const baseMat = new THREE.PointsMaterial({
             size: 8000,
             map: starTexture,
             vertexColors: true,
@@ -168,6 +248,9 @@ export class SpaceEngine {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+
+        // Adapt material for current renderer (WebGPU or WebGL)
+        const mat = adaptMaterial(baseMat, this.isWebGPU);
 
         this.starBackdrop.add(new THREE.Points(geo, mat));
 
@@ -205,7 +288,7 @@ export class SpaceEngine {
         dustGeo.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
 
         // Use radial texture for round particles
-        const dustMat = new THREE.PointsMaterial({
+        const baseDustMat = new THREE.PointsMaterial({
             size: 3000,
             map: createRadialTexture(),
             vertexColors: true,
@@ -213,6 +296,9 @@ export class SpaceEngine {
             opacity: 0.4,
             depthWrite: false
         });
+
+        // Adapt material for current renderer (WebGPU or WebGL)
+        const dustMat = adaptMaterial(baseDustMat, this.isWebGPU);
 
         this.starBackdrop.add(new THREE.Points(dustGeo, dustMat));
     }
@@ -326,7 +412,10 @@ export class SpaceEngine {
      * Main animation loop
      */
     animate() {
-        if (this.disposed) return; // Stop if disposed
+        if (this.disposed || !this.initialized) {
+            console.log('animate() exiting - disposed:', this.disposed, 'initialized:', this.initialized);
+            return; // Stop if disposed or not initialized
+        }
         this.animationId = requestAnimationFrame(this.animate);
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
@@ -407,6 +496,12 @@ export class SpaceEngine {
         // =========== RENDER ===========
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
+        } else {
+            console.error('Cannot render - missing:', {
+                renderer: !!this.renderer,
+                scene: !!this.scene,
+                camera: !!this.camera
+            });
         }
 
         // =========== HUD UPDATE ===========
@@ -433,6 +528,7 @@ export class SpaceEngine {
      */
     cleanup() {
         this.disposed = true; // Flag to stop loop
+        
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
         }
@@ -464,5 +560,7 @@ export class SpaceEngine {
         this.camera = null;
         this.renderer = null;
         this.systems = null;
+        this.initialized = false;
+        this.initializing = false;
     }
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { createTSLBlackHoleMaterial, updateTSLBlackHoleMaterial, updateTSLBlackHoleResolution } from '../shaders/tslBlackHole.js';
 
 /**
  * Sagittarius A* — Supermassive Black Hole at the Milky Way's center
@@ -22,6 +23,56 @@ export class SagittariusAStar extends BaseSystem {
     }
 
     build(textures) {
+        // Detect renderer type and use appropriate shader
+        const isWebGPU = this.engine?.isWebGPU || false;
+        
+        if (isWebGPU) {
+            // Use TSL shader for WebGPU
+            // NOTE: Full TSL raymarching implementation (tasks 11-16) is complex
+            // For now, using foundation from task 10 with a note that full implementation is needed
+            this.bhMaterial = createTSLBlackHoleMaterial(this.position);
+            
+            // TODO: Complete TSL raymarching implementation
+            // The TSL shader needs the full raymarching logic including:
+            // - Noise functions (hash, fbm, warp)
+            // - Gravitational lensing calculations
+            // - Volumetric accretion disk
+            // - Doppler beaming
+            // - Photon ring
+            // - ACES tone mapping
+            console.log('Using TSL black hole shader (foundation only - full implementation pending)');
+        } else {
+            // Use GLSL shader for WebGL
+            this.bhMaterial = this.createGLSLBlackHoleMaterial();
+        }
+
+        // Large box to render the black hole effect
+        const bhMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(150000, 150000, 150000),
+            this.bhMaterial
+        );
+        bhMesh.position.copy(this.position);
+        bhMesh.userData = { name: 'SAGITTARIUS A*', isSystem: true, baseScale: 5000 };
+        bhMesh.renderOrder = 999; // Render AFTER all stars so alpha=1 properly occludes them
+        this.group.add(bhMesh);
+        this.targetables.push(bhMesh);
+
+        // Handle resize
+        const resizeHandler = () => {
+            if (isWebGPU && this.bhMaterial) {
+                updateTSLBlackHoleResolution(this.bhMaterial, window.innerWidth, window.innerHeight);
+            } else if (this.bhMaterial && this.bhMaterial.uniforms) {
+                this.bhMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight);
+            }
+        };
+        window.addEventListener('resize', resizeHandler);
+    }
+
+    /**
+     * Create GLSL-based black hole material for WebGL
+     * @returns {THREE.ShaderMaterial} GLSL shader material
+     */
+    createGLSLBlackHoleMaterial() {
         // Vertex Shader
         const vertexShader = `
             varying vec3 vWorldPosition;
@@ -265,8 +316,8 @@ export class SagittariusAStar extends BaseSystem {
             }
         `;
 
-        // Create shader material
-        this.bhMaterial = new THREE.ShaderMaterial({
+        // Create and return shader material
+        return new THREE.ShaderMaterial({
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
             uniforms: {
@@ -280,31 +331,22 @@ export class SagittariusAStar extends BaseSystem {
             blending: THREE.NormalBlending,
             depthWrite: false
         });
-
-        // Large box to render the black hole effect
-        const bhMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(150000, 150000, 150000),
-            this.bhMaterial
-        );
-        bhMesh.position.copy(this.position);
-        bhMesh.userData = { name: 'SAGITTARIUS A*', isSystem: true, baseScale: 5000 };
-        bhMesh.renderOrder = 999; // Render AFTER all stars so alpha=1 properly occludes them
-        this.group.add(bhMesh);
-        this.targetables.push(bhMesh);
-
-        // Handle resize
-        window.addEventListener('resize', () => {
-            if (this.bhMaterial) {
-                this.bhMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight);
-            }
-        });
     }
 
     update(delta, time, cameraPos) {
+        const isWebGPU = this.engine?.isWebGPU || false;
+        
         if (this.bhMaterial) {
-            this.bhMaterial.uniforms.iTime.value = time * 0.3;
-            if (cameraPos) {
-                this.bhMaterial.uniforms.cameraPos.value.copy(cameraPos);
+            if (isWebGPU) {
+                // Update TSL material uniforms
+                updateTSLBlackHoleMaterial(this.bhMaterial, time * 0.3);
+                // Camera position is handled automatically by TSL
+            } else {
+                // Update GLSL material uniforms
+                this.bhMaterial.uniforms.iTime.value = time * 0.3;
+                if (cameraPos) {
+                    this.bhMaterial.uniforms.cameraPos.value.copy(cameraPos);
+                }
             }
         }
     }

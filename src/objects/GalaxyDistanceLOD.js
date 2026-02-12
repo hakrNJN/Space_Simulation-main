@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createRadialTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * GalaxyDistanceLOD
@@ -57,7 +58,7 @@ export class GalaxyDistanceLOD extends BaseSystem {
         const arms = this._getArms();
 
         // 1. CORE SMOOTHING GLOW
-        const glowMat = new THREE.SpriteMaterial({
+        const baseGlowMat = new THREE.SpriteMaterial({
             map: softTex,
             color: 0xffddaa,
             transparent: true,
@@ -65,6 +66,7 @@ export class GalaxyDistanceLOD extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const glowMat = adaptMaterial(baseGlowMat, this.engine.isWebGPU);
         this.materials.push(glowMat);
         const glowSprite = new THREE.Sprite(glowMat);
         glowSprite.scale.set(16000000, 4000000, 1);
@@ -77,13 +79,14 @@ export class GalaxyDistanceLOD extends BaseSystem {
             const t = 0.05 + Math.random() * 0.9; // Along arm body
             const pt = this._armPoint(arm, t, 0.85);
 
-            const mat = new THREE.SpriteMaterial({
+            const baseMat = new THREE.SpriteMaterial({
                 map: softTex,
                 transparent: true,
                 opacity: 0,
                 blending: THREE.NormalBlending, // Normal for "heavy" shadows
                 depthWrite: false
             });
+            const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
 
             // Tapered dark colors
             const type = Math.random();

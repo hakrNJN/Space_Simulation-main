@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { createNoiseTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * TRAPPIST-1 System - Ultra-cool red dwarf with 7 Earth-sized planets
@@ -62,11 +63,12 @@ export class Trappist1 extends BaseSystem {
             tex = createNoiseTexture('rock', config.c1, config.c2);
         }
 
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.7,
             metalness: 0.1
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         mesh.userData = {
             name: config.name,

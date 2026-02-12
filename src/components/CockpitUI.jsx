@@ -16,25 +16,38 @@ const CockpitUI = () => {
 
     useEffect(() => {
         if (!mountRef.current) return;
+        
+        // Prevent double initialization in StrictMode
+        let mounted = true;
 
-        engineRef.current = new SpaceEngine(mountRef.current, (data) => {
-            setHudData({
-                speed: Math.abs(data.speed).toFixed(0),
-                coords: {
-                    x: data.position.x.toFixed(0),
-                    y: data.position.y.toFixed(0),
-                    z: data.position.z.toFixed(0)
-                },
-                targetName: data.nearestSystem || 'VOID',
-                targetDist: (data.nearestDistance / 1000).toFixed(1),
-                heading: data.heading || 0,
-                nearbySystems: data.nearbySystems || []
+        const initEngine = async () => {
+            if (!mounted) return;
+            
+            engineRef.current = new SpaceEngine(mountRef.current, (data) => {
+                if (!mounted) return;
+                
+                setHudData({
+                    speed: Math.abs(data.speed).toFixed(0),
+                    coords: {
+                        x: data.position.x.toFixed(0),
+                        y: data.position.y.toFixed(0),
+                        z: data.position.z.toFixed(0)
+                    },
+                    targetName: data.nearestSystem || 'VOID',
+                    targetDist: (data.nearestDistance / 1000).toFixed(1),
+                    heading: data.heading || 0,
+                    nearbySystems: data.nearbySystems || []
+                });
             });
-        });
+        };
+        
+        initEngine();
 
         return () => {
+            mounted = false;
             if (engineRef.current) {
                 engineRef.current.cleanup();
+                engineRef.current = null;
             }
         };
     }, []);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createStarTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * Constellations - Star patterns across the universe
@@ -14,13 +15,14 @@ export class Constellations extends BaseSystem {
     }
 
     build() {
-        const material = new THREE.LineBasicMaterial({
+        const baseMaterial = new THREE.LineBasicMaterial({
             color: 0xffff88, // Pale yellow
             transparent: true,
             opacity: 0.25,   // Faint lines
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const material = adaptMaterial(baseMaterial, this.engine?.isWebGPU);
 
         const lines = [];
 
@@ -125,7 +127,7 @@ export class Constellations extends BaseSystem {
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
         starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starCol, 3));
 
-        const starMat = new THREE.PointsMaterial({
+        const baseStarMat = new THREE.PointsMaterial({
             size: 60000,
             map: createStarTexture(), // Use shared utility if available or standard circle
             transparent: true,
@@ -134,6 +136,7 @@ export class Constellations extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const starMat = adaptMaterial(baseStarMat, this.engine?.isWebGPU);
 
         // Need to import createStarTexture if not imported.
         // It is not imported in original file context shown in Step 1336?

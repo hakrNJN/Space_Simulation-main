@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createNoiseTexture, createStarTexture } from '../utils/textureUtils.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * SolarSystem - Our home star system
@@ -21,10 +22,13 @@ export class SolarSystem extends BaseSystem {
         // High-res sun texture
         const sunGeo = new THREE.SphereGeometry(2000, 64, 64);
         const sunTex = loader.load('/textures/planets/sun.jpg');
-        const sunMat = new THREE.MeshBasicMaterial({
-            map: sunTex,
-            color: 0xffffff // Let texture define color
-        });
+        const sunMat = adaptMaterial(
+            new THREE.MeshBasicMaterial({
+                map: sunTex,
+                color: 0xffffff // Let texture define color
+            }),
+            this.engine.isWebGPU
+        );
         const sun = new THREE.Mesh(sunGeo, sunMat);
 
         sun.userData = { name: 'SUN', isSystem: true, baseScale: 2000 };
@@ -41,14 +45,17 @@ export class SolarSystem extends BaseSystem {
 
         // SUN HALO
         const haloTexture = this.createHaloTexture();
-        const haloMaterial = new THREE.SpriteMaterial({
-            map: haloTexture,
-            color: 0xffaa33,
-            transparent: true,
-            opacity: 1.0,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-        });
+        const haloMaterial = adaptMaterial(
+            new THREE.SpriteMaterial({
+                map: haloTexture,
+                color: 0xffaa33,
+                transparent: true,
+                opacity: 1.0,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            }),
+            this.engine.isWebGPU
+        );
         const sunHalo = new THREE.Sprite(haloMaterial);
         sunHalo.scale.set(24000, 24000, 1);
         this.group.add(sunHalo);
@@ -168,20 +175,26 @@ export class SolarSystem extends BaseSystem {
         let mat;
 
         if (texture) {
-            mat = new THREE.MeshStandardMaterial({
-                map: texture,
-                normalMap: normalMap || null,
-                roughness: 0.8,
-                metalness: 0.1
-            });
+            mat = adaptMaterial(
+                new THREE.MeshStandardMaterial({
+                    map: texture,
+                    normalMap: normalMap || null,
+                    roughness: 0.8,
+                    metalness: 0.1
+                }),
+                this.engine.isWebGPU
+            );
         } else {
             // Procedural fallback
             const tex = createNoiseTexture('rock', color1, color2);
-            mat = new THREE.MeshStandardMaterial({
-                map: tex,
-                roughness: 0.7,
-                metalness: 0.1
-            });
+            mat = adaptMaterial(
+                new THREE.MeshStandardMaterial({
+                    map: tex,
+                    roughness: 0.7,
+                    metalness: 0.1
+                }),
+                this.engine.isWebGPU
+            );
         }
 
         // Uranus Alignment Fix:
@@ -229,16 +242,19 @@ export class SolarSystem extends BaseSystem {
         ringTex.rotation = Math.PI / 2;
         ringTex.center.set(0.5, 0.5);
 
-        const ringMat = new THREE.MeshStandardMaterial({
-            map: ringTex,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 1.0,
-            roughness: 0.6,
-            metalness: 0.1,
-            emissive: 0x050505,
-            color: 0xffeedd
-        });
+        const ringMat = adaptMaterial(
+            new THREE.MeshStandardMaterial({
+                map: ringTex,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 1.0,
+                roughness: 0.6,
+                metalness: 0.1,
+                emissive: 0x050505,
+                color: 0xffeedd
+            }),
+            this.engine.isWebGPU
+        );
 
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI / 2; // Lie Flat
@@ -256,14 +272,17 @@ export class SolarSystem extends BaseSystem {
         ringTex.rotation = Math.PI / 2;
         ringTex.center.set(0.5, 0.5);
 
-        const ringMat = new THREE.MeshStandardMaterial({
-            map: ringTex,
-            color: 0x88aabb,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.45,
-            roughness: 0.8
-        });
+        const ringMat = adaptMaterial(
+            new THREE.MeshStandardMaterial({
+                map: ringTex,
+                color: 0x88aabb,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.45,
+                roughness: 0.8
+            }),
+            this.engine.isWebGPU
+        );
 
         const ring = new THREE.Mesh(ringGeo, ringMat);
         // Align with Equator (since Planet is tilted Z=90, Equator is vertical)
@@ -279,14 +298,17 @@ export class SolarSystem extends BaseSystem {
         const cloudGeo = new THREE.SphereGeometry(size * 1.01, 64, 64);
         const cloudTex = loader.load('/textures/planets/earth_clouds.png');
 
-        const cloudMat = new THREE.MeshStandardMaterial({
-            map: cloudTex,
-            transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
+        const cloudMat = adaptMaterial(
+            new THREE.MeshStandardMaterial({
+                map: cloudTex,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            }),
+            this.engine.isWebGPU
+        );
 
         const clouds = new THREE.Mesh(cloudGeo, cloudMat);
         clouds.userData = { isCloud: true };
@@ -302,11 +324,14 @@ export class SolarSystem extends BaseSystem {
         const moonGeo = new THREE.SphereGeometry(moonSize, 32, 32);
         const moonTex = loader.load('/textures/planets/moon.jpg');
 
-        const moonMat = new THREE.MeshStandardMaterial({
-            map: moonTex,
-            roughness: 0.9,
-            metalness: 0.0
-        });
+        const moonMat = adaptMaterial(
+            new THREE.MeshStandardMaterial({
+                map: moonTex,
+                roughness: 0.9,
+                metalness: 0.0
+            }),
+            this.engine.isWebGPU
+        );
 
         const moon = new THREE.Mesh(moonGeo, moonMat);
         moon.position.set(moonDist, 0, 0); // Start position relative to Earth
@@ -321,12 +346,15 @@ export class SolarSystem extends BaseSystem {
 
     createAsteroidBelt(count, minRadius, maxRadius, texture) {
         const geo = new THREE.DodecahedronGeometry(20, 1);
-        const mat = new THREE.MeshStandardMaterial({
-            map: texture,
-            roughness: 0.8,
-            color: new THREE.Color('#aaaaaa').multiplyScalar(3.0),
-            emissive: new THREE.Color(0x222222)
-        });
+        const mat = adaptMaterial(
+            new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 0.8,
+                color: new THREE.Color('#aaaaaa').multiplyScalar(3.0),
+                emissive: new THREE.Color(0x222222)
+            }),
+            this.engine.isWebGPU
+        );
         const mesh = new THREE.InstancedMesh(geo, mat, count);
         const dummy = new THREE.Object3D();
         this.beltData = [];

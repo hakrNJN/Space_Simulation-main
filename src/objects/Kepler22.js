@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { createNoiseTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * Kepler-22 System - G-type star with Kepler-22b
@@ -49,11 +50,12 @@ export class Kepler22 extends BaseSystem {
         const geo = new THREE.SphereGeometry(200, 64, 64);
         const loader = new THREE.TextureLoader();
         const tex = loader.load('/textures/planets/kepler22b.jpg');
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.3,
             metalness: 0.1
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(7000, 0, 0);
         mesh.userData = {
@@ -67,12 +69,13 @@ export class Kepler22 extends BaseSystem {
 
         // Add atmosphere glow
         const glowGeo = new THREE.SphereGeometry(220, 32, 32);
-        const glowMat = new THREE.MeshBasicMaterial({
+        const baseGlowMat = new THREE.MeshBasicMaterial({
             color: 0x4488cc,
             transparent: true,
             opacity: 0.15,
             side: THREE.BackSide
         });
+        const glowMat = adaptMaterial(baseGlowMat, this.engine?.isWebGPU);
         const glow = new THREE.Mesh(glowGeo, glowMat);
         mesh.add(glow);
 
@@ -82,7 +85,8 @@ export class Kepler22 extends BaseSystem {
     createPlanet(size, distance, color1, color2, name) {
         const geo = new THREE.SphereGeometry(size, 64, 64);
         const tex = createNoiseTexture('rock', color1, color2);
-        const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.1 });
+        const baseMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.1 });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         const angle = Math.random() * Math.PI * 2;
         mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);

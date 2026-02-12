@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { createRadialTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 
 /**
@@ -54,7 +55,7 @@ export class Vega extends BaseSystem {
         diskGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         diskGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const diskMat = new THREE.PointsMaterial({
+        const baseDiskMat = new THREE.PointsMaterial({
             size: 400, // Slightly larger to account for soft texture
             map: createRadialTexture(),
             vertexColors: true,
@@ -63,6 +64,7 @@ export class Vega extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const diskMat = adaptMaterial(baseDiskMat, this.engine?.isWebGPU);
 
         const disk = new THREE.Points(diskGeo, diskMat);
         disk.rotation.x = Math.PI / 6; // Tilted disk
@@ -74,10 +76,11 @@ export class Vega extends BaseSystem {
         const loader = new THREE.TextureLoader();
         const planetGeo = new THREE.SphereGeometry(600, 64, 64);
         const planetTex = loader.load('/textures/planets/uranus.jpg'); // Reuse Uranus texture for a cold dust planet
-        const planetMat = new THREE.MeshStandardMaterial({
+        const basePlanetMat = new THREE.MeshStandardMaterial({
             map: planetTex,
             roughness: 0.9
         });
+        const planetMat = adaptMaterial(basePlanetMat, this.engine?.isWebGPU);
         this.vegaPlanet = new THREE.Mesh(planetGeo, planetMat);
 
         // Initial position

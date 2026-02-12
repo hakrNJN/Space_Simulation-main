@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createNoiseTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * SpaceDebris - Scattered asteroids, rocks, and metallic debris
@@ -35,12 +36,13 @@ export class SpaceDebris extends BaseSystem {
 
     createDebrisCluster(center, count, texture) {
         const geo = new THREE.DodecahedronGeometry(50, 0);
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.9,
             metalness: 0.3,
             color: new THREE.Color('#aaaaaa')
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
 
         const mesh = new THREE.InstancedMesh(geo, mat, count);
         const dummy = new THREE.Object3D();
@@ -75,12 +77,13 @@ export class SpaceDebris extends BaseSystem {
     createScatteredRocks(texture) {
         // Larger, individual rocks scattered more widely
         const geo = new THREE.IcosahedronGeometry(200, 1);
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.85,
             metalness: 0.4,
             color: new THREE.Color('#666666')
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
 
         const count = 100;
         const mesh = new THREE.InstancedMesh(geo, mat, count);

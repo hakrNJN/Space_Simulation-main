@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createRadialTexture, createIrregularTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * NebulaCloud - Realistic interstellar gas and dust clouds
@@ -81,7 +82,7 @@ export class NebulaCloud extends BaseSystem {
         coreGeo.setAttribute('position', new THREE.BufferAttribute(corePos, 3));
         coreGeo.setAttribute('color', new THREE.BufferAttribute(coreCol, 3));
 
-        const coreMat = new THREE.PointsMaterial({
+        const baseCoreMat = new THREE.PointsMaterial({
             size: 1800,
             map: radialTex,
             vertexColors: true,
@@ -90,6 +91,7 @@ export class NebulaCloud extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const coreMat = adaptMaterial(baseCoreMat, this.engine.isWebGPU);
 
         cloudGroup.add(new THREE.Points(coreGeo, coreMat));
 
@@ -149,7 +151,7 @@ export class NebulaCloud extends BaseSystem {
         filGeo.setAttribute('position', new THREE.BufferAttribute(filPos, 3));
         filGeo.setAttribute('color', new THREE.BufferAttribute(filCol, 3));
 
-        const filMat = new THREE.PointsMaterial({
+        const baseFilMat = new THREE.PointsMaterial({
             size: 2200,
             map: irregularTex,
             vertexColors: true,
@@ -158,6 +160,7 @@ export class NebulaCloud extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const filMat = adaptMaterial(baseFilMat, this.engine.isWebGPU);
 
         cloudGroup.add(new THREE.Points(filGeo, filMat));
 
@@ -188,7 +191,7 @@ export class NebulaCloud extends BaseSystem {
         hazeGeo.setAttribute('position', new THREE.BufferAttribute(hazePos, 3));
         hazeGeo.setAttribute('color', new THREE.BufferAttribute(hazeCol, 3));
 
-        const hazeMat = new THREE.PointsMaterial({
+        const baseHazeMat = new THREE.PointsMaterial({
             size: 5000,
             map: radialTex,
             vertexColors: true,
@@ -197,6 +200,7 @@ export class NebulaCloud extends BaseSystem {
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
+        const hazeMat = adaptMaterial(baseHazeMat, this.engine.isWebGPU);
 
         cloudGroup.add(new THREE.Points(hazeGeo, hazeMat));
 

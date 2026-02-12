@@ -35,6 +35,12 @@ body {
     background: #000;
 }
 
+#canvas-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
 /* UI Overlay */
 #cockpit-ui {
     position: absolute;

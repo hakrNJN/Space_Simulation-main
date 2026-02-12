@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { createNoiseTexture } from '../utils/textureUtils.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * Proxima Centauri - Nearest star to the Sun
@@ -34,11 +35,12 @@ export class ProximaCentauri extends BaseSystem {
         const geo = new THREE.SphereGeometry(100, 64, 64);
         const loader = new THREE.TextureLoader();
         const tex = loader.load('/textures/planets/proxima_b.jpg');
-        const mat = new THREE.MeshStandardMaterial({
+        const baseMat = new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.8,
             metalness: 0.2
         });
+        const mat = adaptMaterial(baseMat, this.engine?.isWebGPU);
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(3000, 0, 0);
         mesh.userData = {
