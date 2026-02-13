@@ -1,4 +1,5 @@
 # Implementation Tasks: Galaxy Visual Enhancements
+# Implementation Tasks: Galaxy Visual Enhancements
 
 ## Phase 1: Renderer Detection & Setup
 

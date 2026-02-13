@@ -43,8 +43,9 @@ export class SingularityBlackHole {
         this.noiseTexture = null;
         this.starsTexture = null;
 
-        // Mesh
-        this.mesh = null;
+        // Meshes - only black hole (no glow)
+        this.blackHoleMesh = null; // Actual black hole (800K → 0)
+        this.mesh = null;          // Legacy reference (points to blackHoleMesh)
         
         // Uniforms for black hole shader
         this.uniforms = {
@@ -149,48 +150,44 @@ export class SingularityBlackHole {
     /**
      * Build the black hole mesh and material
      * 
-     * CRITICAL: Uses UNIT SPHERE (radius 1.0) and scales the mesh
-     * This matches the Singularity implementation exactly
+     * CRITICAL: Creates ONLY the black hole mesh (no glow)
      */
     async build() {
         await this.loadTextures();
 
         // UNIT SPHERE - radius 1.0 (Singularity uses this)
-        // Scale is applied to the mesh, not the geometry
         const geometry = new THREE.SphereGeometry(1, 64, 64);
 
-        // Create material based on renderer type
-        let material;
-
+        // Create BLACK HOLE material (complex raymarched shader)
+        let blackHoleMaterial;
         if (this.isWebGPU) {
-            material = this.createTSLMaterial();
+            blackHoleMaterial = this.createTSLMaterial();
         } else {
-            material = this.createGLSLMaterial();
+            blackHoleMaterial = this.createGLSLMaterial();
         }
 
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.name = 'BlackHoleMesh';
-        
-        // SCALE THE MESH - Start at minimum
-        this.mesh.scale.setScalar(15000);
-        
-        this.mesh.frustumCulled = false; // Always render, don't cull
-        this.mesh.renderOrder = 999; // Render on top
-        this.mesh.visible = true; // Controlled by opacity
-        
-        // Set initial opacity to 0
-        if (material.opacity !== undefined) {
-            material.opacity = 0;
+        // Create BLACK HOLE mesh
+        this.blackHoleMesh = new THREE.Mesh(geometry, blackHoleMaterial);
+        this.blackHoleMesh.name = 'BlackHoleMesh';
+        this.blackHoleMesh.scale.setScalar(15000); // Start at minimum
+        this.blackHoleMesh.frustumCulled = false;
+        this.blackHoleMesh.renderOrder = 999;
+        this.blackHoleMesh.visible = false; // Start invisible
+        if (blackHoleMaterial.opacity !== undefined) {
+            blackHoleMaterial.opacity = 0;
         }
-        
-        this.container.add(this.mesh);
+
+        // Add to container
+        this.container.add(this.blackHoleMesh);
         this.scene.add(this.container);
 
-        console.log('✓ Black hole mesh created');
+        // Legacy reference
+        this.mesh = this.blackHoleMesh;
+
+        console.log('✓ Black hole mesh created (no glow)');
         console.log(`  - Renderer: ${this.isWebGPU ? 'WebGPU (TSL)' : 'WebGL (GLSL)'}`);
         console.log(`  - Position: (${this.container.position.x}, ${this.container.position.y}, ${this.container.position.z})`);
-        console.log(`  - Geometry radius: 1.0 (unit sphere)`);
-        console.log(`  - Glow: 2.5M→1M fade in, 1M→800K fade out`);
+        console.log(`  - Rule: >800K = invisible, <800K = visible`);
     }
 
     /**
@@ -418,65 +415,60 @@ export class SingularityBlackHole {
 
     /**
      * Update black hole (called every frame)
-     * Dynamically scale based on distance for proper visibility
      * 
-     * GLOW BEHAVIOR:
-     * - >2.5M: No glow (invisible)
-     * - 2.5M → 1M: Glow fades IN, appears and grows
-     * - 1M → 800K: Glow fades OUT, disappears
-     * - <800K: Black hole accretion disk visible (no glow)
+     * SIMPLE RULE:
+     * - >800K: INVISIBLE (no black hole)
+     * - 800K → 600K: Fades IN (accretion disk appears)
+     * - 600K → 400K: Black sphere fades IN
+     * - <400K: Fully visible
      */
     update(delta, time, camera) {
-        if (!this.mesh) return;
+        if (!this.blackHoleMesh) return;
 
         // Calculate distance from camera to black hole
         const distance = camera.position.length(); // Distance from galactic center
 
-        let targetScale;
-        let targetOpacity;
+        let bhScale, bhOpacity;
         
-        if (distance > 2500000) {
-            // Very far (>2.5M) - No glow
-            targetScale = 15000;
-            targetOpacity = 0.0;
-        } else if (distance > 1000000) {
-            // Far range (2.5M → 1M) - Glow fades IN and grows
-            const t = (2500000 - distance) / (2500000 - 1000000); // 0 → 1 as we get closer
-            targetScale = 15000 + t * 25000; // 15K → 40K
-            targetOpacity = t; // 0.0 → 1.0
-        } else if (distance > 800000) {
-            // Transition (1M → 800K) - Glow fades OUT
-            const t = (distance - 800000) / (1000000 - 800000); // 1 → 0 as we get closer
-            targetScale = 40000;
-            targetOpacity = t; // 1.0 → 0.0
-        } else if (distance > 250000) {
-            // Outer zone (800K → 250K) - Black hole accretion disk (no glow)
-            const t = (800000 - distance) / (800000 - 250000);
-            targetScale = 15000 + t * 25000; // 15K → 40K
-            targetOpacity = 1.0; // Fully visible
+        if (distance > 800000) {
+            // Far (>800K) - NO BLACK HOLE
+            bhScale = 15000;
+            bhOpacity = 0.0;
+        } else if (distance > 600000) {
+            // Approaching (800K → 600K) - BH fades IN
+            const t = (800000 - distance) / (800000 - 600000); // 0 at 800K → 1 at 600K
+            bhScale = 15000 + t * 25000; // 15K → 40K
+            bhOpacity = t * 0.5; // 0.0 → 0.5 (accretion disk)
+        } else if (distance > 400000) {
+            // Close (600K → 400K) - Black sphere fades IN
+            const t = (600000 - distance) / (600000 - 400000); // 0 at 600K → 1 at 400K
+            bhScale = 40000 + t * 20000; // 40K → 60K
+            bhOpacity = 0.5 + t * 0.5; // 0.5 → 1.0 (black sphere appears)
         } else {
-            // Black hole zone (<250K) - Large accretion disk
-            const t = Math.min(1.0, (250000 - distance) / 200000);
-            targetScale = 40000 + t * 40000; // 40K → 80K
-            targetOpacity = 1.0; // Fully visible
+            // Very close (<400K) - Fully visible, growing
+            const t = Math.min(1.0, (400000 - distance) / 300000);
+            bhScale = 60000 + t * 20000; // 60K → 80K
+            bhOpacity = 1.0;
         }
 
-        // Smooth scale transition
-        const currentScale = this.mesh.scale.x;
-        const newScale = currentScale + (targetScale - currentScale) * 0.02;
-        this.mesh.scale.setScalar(newScale);
+        // Update black hole mesh with FAST smoothing
+        const currentBHScale = this.blackHoleMesh.scale.x;
+        const newBHScale = currentBHScale + (bhScale - currentBHScale) * 0.1;
+        this.blackHoleMesh.scale.setScalar(newBHScale);
         
-        // Smooth opacity transition
-        if (this.mesh.material.opacity !== undefined) {
-            const currentOpacity = this.mesh.material.opacity;
-            const newOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.05;
-            this.mesh.material.opacity = newOpacity;
+        if (this.blackHoleMesh.material.opacity !== undefined) {
+            const currentBHOpacity = this.blackHoleMesh.material.opacity;
+            const newBHOpacity = currentBHOpacity + (bhOpacity - currentBHOpacity) * 0.5;
+            this.blackHoleMesh.material.opacity = newBHOpacity;
             
-            // Only hide when completely transparent
-            this.mesh.visible = newOpacity > 0.01;
+            // FORCE invisible when >800K
+            if (distance > 800000) {
+                this.blackHoleMesh.visible = false;
+            } else {
+                this.blackHoleMesh.visible = newBHOpacity > 0.01;
+            }
         } else {
-            // Fallback
-            this.mesh.visible = targetOpacity > 0.01;
+            this.blackHoleMesh.visible = distance <= 800000 && bhOpacity > 0.01;
         }
 
         // Update GLSL uniforms (WebGL fallback)
