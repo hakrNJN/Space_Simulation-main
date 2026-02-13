@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseSystem } from './BaseSystem.js';
 import { createRadialTexture } from '../utils/textureUtils.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
+import { adaptMaterial } from '../utils/materialAdapter.js';
 
 /**
  * Crab Nebula (M1) - Realistic Supernova Remnant
@@ -114,7 +115,7 @@ export class CrabNebula extends BaseSystem {
             opacity: 0.8
         });
         const synchGlow = new THREE.Sprite(spriteMat);
-        synchGlow.scale.set(20000, 15000, 1);
+        synchGlow.scale.set(100000, 75000, 1); // Increased size from 20000
         this.group.add(synchGlow);
     }
 
@@ -170,15 +171,15 @@ export class CrabNebula extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
-            size: 800,
+        const mat = adaptMaterial(new THREE.PointsMaterial({
+            size: 6000,
             map: texture,
             vertexColors: true,
             transparent: true,
             opacity: 0.75,
             blending: THREE.AdditiveBlending,
             depthWrite: false
-        });
+        }), this.engine?.isWebGPU);
 
         this.group.add(new THREE.Points(geo, mat));
     }
@@ -189,7 +190,6 @@ export class CrabNebula extends BaseSystem {
         const count = 5000;
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
-
         for (let i = 0; i < count; i++) {
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
@@ -208,12 +208,8 @@ export class CrabNebula extends BaseSystem {
             positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * yS;
             positions[i * 3 + 2] = r * Math.cos(phi) * zS;
 
-            // Purple/magenta outer shell
-            const c = new THREE.Color().setHSL(
-                0.82 + Math.random() * 0.08,
-                0.6 + Math.random() * 0.2,
-                0.3 + Math.random() * 0.15
-            );
+            // Red/Orange outer shell
+            const c = new THREE.Color().setHSL(0.0 + Math.random() * 0.15, 0.9, 0.4); // Red/Orange
             colors[i * 3] = c.r;
             colors[i * 3 + 1] = c.g;
             colors[i * 3 + 2] = c.b;
@@ -222,15 +218,15 @@ export class CrabNebula extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
-            size: 2500,
+        const mat = adaptMaterial(new THREE.PointsMaterial({
+            size: 15000,
             map: texture,
             vertexColors: true,
             transparent: true,
             opacity: 0.3,
             blending: THREE.AdditiveBlending,
             depthWrite: false
-        });
+        }), this.engine?.isWebGPU);
 
         this.group.add(new THREE.Points(geo, mat));
     }
@@ -241,7 +237,6 @@ export class CrabNebula extends BaseSystem {
         const count = 3000;
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
-
         for (let i = 0; i < count; i++) {
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
@@ -270,15 +265,15 @@ export class CrabNebula extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
-            size: 1500,
+        const mat = adaptMaterial(new THREE.PointsMaterial({
+            size: 8000,
             map: texture,
             vertexColors: true,
             transparent: true,
             opacity: 0.25,
             blending: THREE.AdditiveBlending,
             depthWrite: false
-        });
+        }), this.engine?.isWebGPU);
 
         this.group.add(new THREE.Points(geo, mat));
     }
@@ -291,7 +286,6 @@ export class CrabNebula extends BaseSystem {
         const count = tendrilCount * pointsPerTendril;
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
-
         for (let t = 0; t < tendrilCount; t++) {
             // Random starting direction
             const startTheta = Math.random() * Math.PI * 2;
@@ -333,15 +327,15 @@ export class CrabNebula extends BaseSystem {
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const mat = new THREE.PointsMaterial({
-            size: 600,
+        const mat = adaptMaterial(new THREE.PointsMaterial({
+            size: 4000,
             map: texture,
             vertexColors: true,
             transparent: true,
             opacity: 0.35,
             blending: THREE.AdditiveBlending,
             depthWrite: false
-        });
+        }), this.engine?.isWebGPU);
 
         this.group.add(new THREE.Points(geo, mat));
     }

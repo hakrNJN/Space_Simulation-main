@@ -71,6 +71,8 @@ export function createAllSystems() {
         // === Galactic Center ===
         // TODO: Replace with Singularity black hole
         // new SagittariusAStar(),
+        // new SingularityBlackHole(), // Disabled to fix TSL Error momentarily
+        // new SagittariusAStar(),
 
         // === Star Systems (Milky Way disk) ===
         new SolarSystem(),

@@ -55,70 +55,44 @@ export class GalaxyDistanceLOD extends BaseSystem {
 
     build(textures) {
         const softTex = createRadialTexture();
-        const arms = this._getArms();
 
-        // 1. CORE SMOOTHING GLOW
-        const baseGlowMat = new THREE.SpriteMaterial({
+        // Core Smoothing Glow removed by user request (was causing "halo" artifact)
+        /*
+        const coreMat = adaptMaterial(new THREE.SpriteMaterial({
             map: softTex,
-            color: 0xffddaa,
+            color: 0xffaa88, // Warm core color
             transparent: true,
-            opacity: 0,
+            opacity: 0, // Starts invisible
             blending: THREE.AdditiveBlending,
             depthWrite: false
-        });
-        const glowMat = adaptMaterial(baseGlowMat, this.engine.isWebGPU);
-        this.materials.push(glowMat);
-        const glowSprite = new THREE.Sprite(glowMat);
-        glowSprite.scale.set(16000000, 4000000, 1);
-        this.group.add(glowSprite);
+        }), this.engine?.isWebGPU);
 
-        // 2. SCALE-MATCHED DARK CLOUDS (Sprites)
-        const darkCount = 300;
-        for (let i = 0; i < darkCount; i++) {
-            const arm = arms[i % 4];
-            const t = 0.05 + Math.random() * 0.9; // Along arm body
-            const pt = this._armPoint(arm, t, 0.85);
-
-            const baseMat = new THREE.SpriteMaterial({
-                map: softTex,
-                transparent: true,
-                opacity: 0,
-                blending: THREE.NormalBlending, // Normal for "heavy" shadows
-                depthWrite: false
-            });
-            const mat = adaptMaterial(baseMat, this.engine.isWebGPU);
-
-            // Tapered dark colors
-            const type = Math.random();
-            if (type > 0.4) {
-                mat.color.setHSL(0.04, 0.4, 0.05); // Dark Brown
-            } else {
-                mat.color.setHSL(0.1, 0.1, 0.02); // Grey-Black
-            }
-
-            const sprite = new THREE.Sprite(mat);
-            sprite.position.set(pt.x, pt.y, pt.z);
-
-            // SCALE MATCHED TO ARM WIDTH
-            // 1.5x multiplier for blurriness and overlap
-            const scale = pt.width * 1.5;
-            sprite.scale.set(scale, scale, 1);
-
-            this.group.add(sprite);
-            this.darkSprites.push(sprite);
-            this.materials.push(mat);
-        }
+        const coreSprite = new THREE.Sprite(coreMat);
+        coreSprite.scale.set(600000, 600000, 1); // Covers the core
+        this.group.add(coreSprite);
+        this.materials.push(coreMat);
+        */
     }
 
-    update(delta, time, cameraPos) {
+    update(delta, time, cameraOrPos) {
+        let cameraPos = cameraOrPos;
+        if (cameraOrPos && cameraOrPos.isCamera) {
+            cameraPos = cameraOrPos.position;
+        }
+
         if (!cameraPos) return;
 
         const dist = cameraPos.length();
 
-        // LOD Check (Fade in: 10M -> 50M)
+        // LOD Check (Fade in: 300k -> 1.5M)
+        // Galaxy radius is ~450k. usage starts inside.
+        // We want it visible from "Mid-Outer".
         let opacity = 0;
-        if (dist > 10000000) {
-            opacity = (dist - 10000000) / 40000000;
+        const startDist = 300000;
+        const fullDist = 1500000;
+
+        if (dist > startDist) {
+            opacity = (dist - startDist) / (fullDist - startDist);
             opacity = Math.max(0, Math.min(1, opacity));
         }
 
@@ -127,9 +101,8 @@ export class GalaxyDistanceLOD extends BaseSystem {
 
         // Update Opacity
         this.materials.forEach(mat => {
-            const isDark = mat.blending === THREE.NormalBlending;
-            const maxOp = isDark ? 0.35 : 0.6;
-            mat.opacity = opacity * maxOp;
+            mat.opacity = opacity;
+            mat.needsUpdate = true; // Ensure visual update
         });
 
         // Slow galactic rotation

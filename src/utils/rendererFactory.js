@@ -29,31 +29,31 @@ import * as ThreeWebGPU from 'three/webgpu';
  */
 export async function createRenderer(config) {
     const { width, height, antialias = true, logarithmicDepthBuffer = true } = config;
-    
-    // Disable WebGPU temporarily - black hole shader needs more work
-    const ENABLE_WEBGPU = false;
-    
+
+    // Enable WebGPU - We are fixing the materials now
+    const ENABLE_WEBGPU = true;
+
     // Check if WebGPU is available
     const isWebGPUAvailable = ENABLE_WEBGPU && WebGPU.isAvailable();
-    
+
     if (isWebGPUAvailable) {
         try {
             console.log('→ Initializing WebGPU renderer');
-            
+
             const renderer = new ThreeWebGPU.WebGPURenderer({
                 antialias,
                 forceWebGL: false
             });
-            
+
             // Initialize WebGPU (async operation)
             await renderer.init();
-            
+
             // Configure WebGPU renderer
             renderer.setSize(width, height);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             renderer.toneMappingExposure = 1.2;
-            
+
             console.log('✓ WebGPU renderer initialized successfully');
             return { renderer, isWebGPU: true };
         } catch (error) {
@@ -62,21 +62,21 @@ export async function createRenderer(config) {
     } else {
         console.log('ℹ WebGPU not available, using WebGL');
     }
-    
+
     // WebGL fallback
     console.log('→ Initializing WebGL renderer (fallback mode)');
-    
+
     const renderer = new THREE.WebGLRenderer({
         antialias,
         logarithmicDepthBuffer
     });
-    
+
     // Configure WebGL renderer
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    
+
     console.log('✓ WebGL renderer initialized (compatibility mode)');
     return { renderer, isWebGPU: false };
 }
@@ -90,19 +90,19 @@ export async function createRenderer(config) {
  */
 export function createRendererSync(config) {
     const { width, height, antialias = true, logarithmicDepthBuffer = true } = config;
-    
+
     console.warn('⚠ Using synchronous renderer creation - WebGPU not available (requires async)');
-    
+
     const renderer = new THREE.WebGLRenderer({
         antialias,
         logarithmicDepthBuffer
     });
-    
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    
+
     console.log('✓ WebGL renderer initialized (sync mode)');
     return { renderer, isWebGPU: false };
 }

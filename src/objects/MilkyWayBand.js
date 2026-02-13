@@ -3,6 +3,7 @@ import { BaseSystem } from './BaseSystem.js';
 import { createStarTexture, createRadialTexture, createNoiseTexture } from '../utils/textureUtils.js';
 import { SYSTEM_POSITIONS } from './SystemPositions.js';
 import { adaptMaterial } from '../utils/materialAdapter.js';
+import { ComputeGalaxy } from './ComputeGalaxy.js';
 
 function smoothstep(min, max, value) {
     var x = Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -22,6 +23,14 @@ export class MilkyWayBand extends BaseSystem {
     }
 
     build(textures) {
+        if (this.engine.isWebGPU) {
+            console.log("MilkyWayBand: Using Compute Sytem (TSL)");
+            this.computeGalaxy = new ComputeGalaxy(this.engine);
+            this.computeGalaxy.build();
+            this.group.add(this.computeGalaxy.group);
+            return;
+        }
+
         const starTexture = createStarTexture();
         const radialTexture = createRadialTexture();
 
@@ -33,6 +42,7 @@ export class MilkyWayBand extends BaseSystem {
         // this.createCentralBar(starTexture); // Removed to empty center ("H type" fix)
         this.createGalacticRing(radialTexture);
         this.createDiskStars(starTexture);
+        this.createCoreStars(starTexture); // Dense core stars
         this.createCoreStars(starTexture); // Dense core stars
         this.createCoreDust(radialTexture); // Blurry dust in cluster
     }
@@ -515,7 +525,14 @@ export class MilkyWayBand extends BaseSystem {
         this.group.add(new THREE.Points(geo, mat));
     }
 
-    update(delta, time) {
+    update(delta, time, camera) {
+        if (this.computeGalaxy) {
+            this.computeGalaxy.update(delta, time, camera);
+            // Also rotate the group for overall galaxy spin in addition to particle orbits?
+            // The compute shader handles orbits, but maybe we want the whole frame to rotate too?
+            // Duplicate logic: "this.group.rotation.y += delta * 0.005;"
+            // Let's keep the group rotation for now to match legacy behavior
+        }
         this.group.rotation.y += delta * 0.005; // Visible galactic rotation
     }
 }

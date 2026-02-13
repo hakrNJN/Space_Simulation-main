@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import * as ThreeWebGPU from 'three/webgpu';
+import {
+    vec4, attribute, positionLocal,
+    color, float, texture, uv, uniform
+} from 'three/tsl';
 import { createNoiseTexture, createStarTexture, createRadialTexture } from '../utils/textureUtils';
 import { createAllSystems, SYSTEM_POSITIONS, SingularityBlackHole } from '../objects/index.js';
 import { createRenderer } from '../utils/rendererFactory.js';
@@ -68,7 +73,7 @@ export class SpaceEngine {
         // Modular Systems
         this.systems = [];
         this.allTargetables = [];
-        
+
         // Initialization and lifecycle flags
         this.initialized = false;
         this.initializing = false;
@@ -86,32 +91,33 @@ export class SpaceEngine {
             console.warn('SpaceEngine already initialized or initializing');
             return;
         }
-        
+
         this.initializing = true;
-        
+
         try {
             await this.initScene();
-            
+
             // Only continue if we have a valid scene (not disposed)
             if (!this.scene || !this.renderer) {
                 console.log('SpaceEngine scene/renderer missing, initialization aborted');
                 this.initializing = false;
                 return;
             }
-            
+
             this.initSystems();
-            await this.initBlackHole();
+            // Black Hole is now part of initSystems
+            // await this.initBlackHole(); 
             this.initBackdrop();
             this.initGalacticZones();
             this.initInput();
-            
+
             // Set initialized BEFORE starting animation loop
             this.initialized = true;
             this.initializing = false;
-            
+
             this.animate = this.animate.bind(this);
             this.animate();
-            
+
             console.log('✓ SpaceEngine initialization complete');
         } catch (error) {
             this.initializing = false;
@@ -141,7 +147,7 @@ export class SpaceEngine {
             antialias: true,
             logarithmicDepthBuffer: true
         });
-        
+
         this.renderer = renderer;
         this.isWebGPU = isWebGPU;
         console.log('→ initScene: Renderer created, isWebGPU:', isWebGPU);
@@ -154,7 +160,7 @@ export class SpaceEngine {
                 height: this.renderer.domElement.style.height
             }
         });
-        
+
         // Append to DOM
         if (this.container && this.renderer.domElement) {
             // Check if there's already a canvas in the container
@@ -163,7 +169,7 @@ export class SpaceEngine {
                 console.warn('→ initScene: Removing existing canvas from container');
                 this.container.removeChild(existingCanvas);
             }
-            
+
             this.container.appendChild(this.renderer.domElement);
             console.log('→ initScene: Canvas appended to container');
             console.log('→ initScene: Container dimensions:', {
@@ -207,16 +213,16 @@ export class SpaceEngine {
     async initBlackHole() {
         try {
             console.log('→ Initializing Singularity Black Hole...');
-            
+
             this.blackHole = new SingularityBlackHole(this);
             console.log('  - Black hole instance created');
-            
+
             await this.blackHole.build();
             console.log('  - Black hole build complete');
-            
+
             // Add to systems array for update loop
             this.systems.push(this.blackHole);
-            
+
             console.log('✓ Singularity Black Hole initialized at galactic center');
         } catch (error) {
             console.error('❌ Failed to initialize black hole:', error);
@@ -225,7 +231,7 @@ export class SpaceEngine {
     }
 
     /**
-     * Background star field that follows camera
+     * Background star field that follows camera (WebGPU InstancedMesh version)
      */
     initBackdrop() {
         const starTexture = createStarTexture();
@@ -233,121 +239,136 @@ export class SpaceEngine {
         this.starBackdrop = new THREE.Group();
         this.scene.add(this.starBackdrop);
 
-        // Spherical star distribution
-        const geo = new THREE.BufferGeometry();
-        const count = 8000;
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-
-        for (let i = 0; i < count; i++) {
+        // --- Create Stars ---
+        const getStarPos = () => {
             const r = 800000 + Math.random() * 5000000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
+            return new THREE.Vector3(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+        };
 
-            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i * 3 + 2] = r * Math.cos(phi);
-
+        const getStarColor = () => {
             const colorType = Math.random();
             const c = new THREE.Color();
-            if (colorType < 0.6) {
-                c.setHSL(0.1, 0.1, 0.7 + Math.random() * 0.3);
-            } else if (colorType < 0.8) {
-                c.setHSL(0.6, 0.3, 0.6 + Math.random() * 0.3);
-            } else {
-                c.setHSL(0.08, 0.6, 0.5 + Math.random() * 0.3);
-            }
-            colors[i * 3] = c.r;
-            colors[i * 3 + 1] = c.g;
-            colors[i * 3 + 2] = c.b;
-        }
+            if (colorType < 0.6) c.setHSL(0.1, 0.1, 0.7 + Math.random() * 0.3);
+            else if (colorType < 0.8) c.setHSL(0.6, 0.3, 0.6 + Math.random() * 0.3);
+            else c.setHSL(0.08, 0.6, 0.5 + Math.random() * 0.3);
+            return c;
+        };
 
-        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        this.starBackdropPoints = this._createInstancedSystem('StarBackdrop', 8000, 8000, starTexture, getStarPos, getStarColor);
+        this.starBackdrop.add(this.starBackdropPoints);
 
-        const baseMat = new THREE.PointsMaterial({
-            size: 8000,
-            map: starTexture,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        // Adapt material for current renderer (WebGPU or WebGL)
-        const mat = adaptMaterial(baseMat, this.isWebGPU);
-
-        const starPoints = new THREE.Points(geo, mat);
-        starPoints.name = 'StarBackdrop';
-        this.starBackdrop.add(starPoints);
-        
-        // Store reference for zone system
-        this.starBackdropPoints = starPoints;
-
-        // ===== DUST PARTICLES (small white/gray, non-glowing) =====
+        // ===== DUST PARTICLES =====
         this.createDustLayer();
     }
 
     /**
-     * Create dust particle layer in the galaxy
+     * Create dust particle layer in the galaxy (WebGPU InstancedMesh version)
      */
     createDustLayer() {
-        const dustGeo = new THREE.BufferGeometry();
-        const dustCount = 5000;
-        const dustPositions = new Float32Array(dustCount * 3);
-        const dustColors = new Float32Array(dustCount * 3);
+        const dustTexture = createRadialTexture();
 
-        for (let i = 0; i < dustCount; i++) {
+        const getDustPos = () => {
             const r = 200000 + Math.random() * 3000000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos((Math.random() * 2) - 1);
+            return new THREE.Vector3(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+        };
 
-            dustPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-            dustPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            dustPositions[i * 3 + 2] = r * Math.cos(phi);
-
-            // White/gray dust colors
+        const getDustColor = () => {
             const brightness = 0.3 + Math.random() * 0.4;
-            const c = new THREE.Color(brightness, brightness, brightness);
-            dustColors[i * 3] = c.r;
-            dustColors[i * 3 + 1] = c.g;
-            dustColors[i * 3 + 2] = c.b;
+            return new THREE.Color(brightness, brightness, brightness);
+        };
+
+        this.dustLayerPoints = this._createInstancedSystem('DustLayer', 5000, 3000, dustTexture, getDustPos, getDustColor);
+        this.starBackdrop.add(this.dustLayerPoints);
+    }
+
+    _createInstancedSystem(name, count, sizeBase, textureMap, getPosition, getColor) {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const mesh = new THREE.InstancedMesh(geometry, new ThreeWebGPU.MeshBasicNodeMaterial(), count);
+        mesh.name = name;
+        mesh.frustumCulled = false;
+
+        const colors = new Float32Array(count * 3);
+
+        const matrix = new THREE.Matrix4();
+        const dummyQ = new THREE.Quaternion();
+        const dummyS = new THREE.Vector3(1, 1, 1);
+
+        for (let i = 0; i < count; i++) {
+            const pos = getPosition(i);
+
+            matrix.compose(pos, dummyQ, dummyS);
+            mesh.setMatrixAt(i, matrix);
+
+            const col = getColor(i);
+            colors[i * 3] = col.r;
+            colors[i * 3 + 1] = col.g;
+            colors[i * 3 + 2] = col.b;
         }
+        mesh.instanceMatrix.needsUpdate = true;
 
-        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-        dustGeo.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
+        geometry.setAttribute('iColor', new THREE.InstancedBufferAttribute(colors, 3));
 
-        // Use radial texture for round particles
-        const baseDustMat = new THREE.PointsMaterial({
-            size: 3000,
-            map: createRadialTexture(),
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.4,
-            depthWrite: false
-        });
+        const material = mesh.material;
+        material.transparent = true;
+        material.blending = THREE.AdditiveBlending;
+        material.depthWrite = false;
 
-        // Adapt material for current renderer (WebGPU or WebGL)
-        const dustMat = adaptMaterial(baseDustMat, this.isWebGPU);
+        // Billboard using Uniforms (TSL fallback)
+        const uBackdropViewMatrix = uniform(new THREE.Matrix4());
+        const uBackdropProjMatrix = uniform(new THREE.Matrix4());
 
-        const dustPoints = new THREE.Points(dustGeo, dustMat);
-        dustPoints.name = 'DustLayer';
-        this.starBackdrop.add(dustPoints);
-        
-        // Store reference for zone system
-        this.dustLayerPoints = dustPoints;
+        // We need to update these uniforms in the loop too.
+        // Assign them to the mesh.userData or something accessible?
+        // Actually, we can attach an onBeforeRender or just modify the update loop to check for them.
+        // Let's store them in the system or loop.
+
+        // Center of instance in View Space
+        const viewCenter = uBackdropViewMatrix.mul(vec4(0, 0, 0, 1));
+        const scale = float(sizeBase);
+        const offset = vec4(positionLocal.x.mul(scale), positionLocal.y.mul(scale), 0.0, 0.0);
+        const viewPos = viewCenter.add(offset);
+        material.vertexNode = uBackdropProjMatrix.mul(viewPos);
+
+        // Color + Texture
+        let colorNode = attribute('iColor');
+        if (textureMap) {
+            // Determine if 'uv' or 'uv()' is available.
+            // Assuming 'uv' is imported.
+            colorNode = colorNode.mul(texture(textureMap, uv()));
+        }
+        material.colorNode = colorNode;
+
+        material.premultipliedAlpha = false;
+
+        // Attach uniforms to mesh so we can find them later
+        mesh.userData.uniforms = {
+            viewMatrix: uBackdropViewMatrix,
+            projectionMatrix: uBackdropProjMatrix
+        };
+
+        return mesh;
     }
 
     /**
      * Initialize Galactic Zone system for performance optimization
-     * near the galactic center
      */
     initGalacticZones() {
         console.log('→ Initializing Galactic Zones...');
-        
+
         this.galacticZones = new GalacticZones(this);
-        
+
         // Register dynamic particles that should fade out
         if (this.starBackdropPoints) {
             this.galacticZones.registerDynamicParticles(this.starBackdropPoints);
@@ -355,27 +376,27 @@ export class SpaceEngine {
         if (this.dustLayerPoints) {
             this.galacticZones.registerDynamicParticles(this.dustLayerPoints);
         }
-        
+
         // Register galaxy particles from all systems
         this.scene.traverse((child) => {
-            if (child.isPoints && child.name && 
-                (child.name.includes('Galaxy') || 
-                 child.name.includes('Stars') || 
-                 child.name.includes('Dust'))) {
+            if (child.isPoints && child.name &&
+                (child.name.includes('Galaxy') ||
+                    child.name.includes('Stars') ||
+                    child.name.includes('Dust'))) {
                 this.galacticZones.registerDynamicParticles(child);
             }
         });
-        
+
         // Register nebulas (they should be visible in outer zone only)
         this.scene.traverse((child) => {
             if (child.name && child.name.includes('Nebula')) {
                 this.galacticZones.registerNebula(child);
             }
         });
-        
+
         // Create static background sphere
         this.galacticZones.createStaticBackground();
-        
+
         console.log('✓ Galactic Zones initialized');
         console.log(`  - Registered ${this.galacticZones.dynamicParticles.length} dynamic particle systems`);
         console.log(`  - Registered ${this.galacticZones.nebulas.length} nebula objects`);
@@ -563,9 +584,9 @@ export class SpaceEngine {
 
         // =========== UPDATE SYSTEMS ===========
         this.systems.forEach(system => {
-            system.update(delta, this.state.time, this.camera.position);
+            system.update(delta, this.state.time, this.camera);
         });
-        
+
         // =========== UPDATE GALACTIC ZONES ===========
         if (this.galacticZones) {
             this.galacticZones.update();
@@ -578,6 +599,19 @@ export class SpaceEngine {
 
         // =========== RENDER ===========
         if (this.renderer && this.scene && this.camera) {
+            // Update Backdrop Uniforms
+            if (this.camera) {
+                const updateUniforms = (mesh) => {
+                    if (mesh && mesh.userData && mesh.userData.uniforms) {
+                        mesh.userData.uniforms.viewMatrix.value.copy(this.camera.matrixWorldInverse);
+                        mesh.userData.uniforms.projectionMatrix.value.copy(this.camera.projectionMatrix);
+                    }
+                };
+                updateUniforms(this.starBackdropPoints);
+                updateUniforms(this.dustLayerPoints);
+            }
+
+            // Render
             this.renderer.render(this.scene, this.camera);
         } else {
             console.error('Cannot render - missing:', {
@@ -616,7 +650,7 @@ export class SpaceEngine {
      */
     cleanup() {
         this.disposed = true; // Flag to stop loop
-        
+
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
         }
