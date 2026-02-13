@@ -74,3 +74,82 @@ export function createCloudTexture() {
     return new THREE.CanvasTexture(canvas);
 }
 
+
+/**
+ * Load nebula texture from file
+ * @returns {Promise<THREE.Texture>} Loaded nebula texture
+ */
+export function loadNebulaTexture() {
+    return new Promise((resolve, reject) => {
+        const loader = new THREE.TextureLoader();
+        loader.load(
+            '/textures/nebula.png',
+            (texture) => {
+                // Configure texture parameters
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.minFilter = THREE.LinearMipMapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.generateMipmaps = true;
+                console.log('✓ Nebula texture loaded successfully');
+                resolve(texture);
+            },
+            undefined,
+            (error) => {
+                console.error('✗ Failed to load nebula texture:', error);
+                reject(error);
+            }
+        );
+    });
+}
+
+/**
+ * Load noise texture from file
+ * @returns {Promise<THREE.Texture>} Loaded noise texture
+ */
+export function loadNoiseTexture() {
+    return new Promise((resolve, reject) => {
+        const loader = new THREE.TextureLoader();
+        loader.load(
+            '/textures/noise_deep.png',
+            (texture) => {
+                // Configure texture parameters
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.minFilter = THREE.LinearMipMapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.generateMipmaps = true;
+                console.log('✓ Noise texture loaded successfully');
+                resolve(texture);
+            },
+            undefined,
+            (error) => {
+                console.error('✗ Failed to load noise texture:', error);
+                reject(error);
+            }
+        );
+    });
+}
+
+/**
+ * Load both nebula and noise textures
+ * @returns {Promise<Object>} Object containing both textures
+ */
+export async function loadGalaxyTextures() {
+    try {
+        const [nebulaTexture, noiseTexture] = await Promise.all([
+            loadNebulaTexture(),
+            loadNoiseTexture()
+        ]);
+        
+        console.log('✓ All galaxy textures loaded successfully');
+        
+        return {
+            nebula: nebulaTexture,
+            noise: noiseTexture
+        };
+    } catch (error) {
+        console.error('✗ Failed to load galaxy textures:', error);
+        throw error;
+    }
+}

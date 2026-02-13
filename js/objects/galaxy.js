@@ -1,6 +1,68 @@
 // Galaxy and Milky Way creation functions
 
-export function createGalaxy(scene, starTexture) {
+/**
+ * Create volumetric cloud particle system for mid-outer galaxy view
+ * @param {THREE.Texture} nebulaTexture - Nebula texture for cloud rendering
+ * @returns {THREE.Points} Cloud particle system
+ */
+function createCloudParticles(nebulaTexture) {
+    const geometry = new THREE.BufferGeometry();
+    const count = 40000;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    
+    for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        
+        // Spiral arm positioning (same as stars but denser)
+        const r = Math.pow(Math.random(), 1.5) * 280000;
+        const spin = r * 0.00005;
+        const armAngle = (i % 2) * Math.PI;
+        const spread = (Math.random() - 0.5) * 2.5;
+        const theta = spin + armAngle + spread;
+        
+        positions[i3] = Math.cos(theta) * r;
+        positions[i3 + 1] = (Math.random() - 0.5) * (8000 + r * 0.15);
+        positions[i3 + 2] = Math.sin(theta) * r;
+        
+        // Color: purple/blue in arms, orange/pink in core
+        const color = new THREE.Color();
+        if (r < 80000) {
+            // Core: orange/pink
+            color.setHSL(0.05 + Math.random() * 0.1, 0.8, 0.5);
+        } else {
+            // Arms: purple/blue
+            color.setHSL(0.65 + Math.random() * 0.15, 0.7, 0.6);
+        }
+        
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
+        
+        // Varying sizes for depth
+        sizes[i] = 3000 + Math.random() * 5000;
+    }
+    
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    
+    const material = new THREE.PointsMaterial({
+        size: 5000,
+        map: nebulaTexture,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.0, // Start invisible
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+    });
+    
+    return new THREE.Points(geometry, material);
+}
+
+export function createGalaxy(scene, starTexture, nebulaTexture = null) {
     const galGroup = new THREE.Group();
     galGroup.position.set(3000000, 1500000, -4000000);
     galGroup.rotation.x = Math.PI / 2.5;
@@ -74,13 +136,20 @@ export function createGalaxy(scene, starTexture) {
     core.scale.set(70000, 50000, 1);
     galGroup.add(core);
 
+    // Create cloud particle system if nebula texture is provided
+    let cloudSystem = null;
+    if (nebulaTexture) {
+        cloudSystem = createCloudParticles(nebulaTexture);
+        galGroup.add(cloudSystem);
+    }
+
     scene.add(galGroup);
     
     // Return galaxy group and particle system for LOD integration
     return {
         group: galGroup,
         particleSystem: particleSystem,
-        cloudSystem: null,  // To be added in Phase 3
+        cloudSystem: cloudSystem,
         spiralStructure: null  // To be added in Phase 4
     };
 }

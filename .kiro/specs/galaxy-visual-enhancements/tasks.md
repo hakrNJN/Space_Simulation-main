@@ -44,21 +44,21 @@
 
 ## Phase 3: Volumetric Cloud System
 
-- [ ] 3.1 Load and prepare textures
+- [x] 3.1 Load and prepare textures
   - Verify nebula.png exists in public/textures
   - Verify noise_deep.png exists in public/textures
   - Add texture loading in galaxy.js or textureUtils.js
   - Configure texture parameters (wrapping, filtering)
   - Add error handling for texture loading failures
 
-- [ ] 3.2 Create cloud particle system
+- [x] 3.2 Create cloud particle system
   - Implement `createCloudParticles()` method in galaxy.js
   - Generate 40,000 particle positions along spiral arms
   - Calculate particle colors (purple/blue in arms, orange/pink in core)
   - Generate varying particle sizes (3000-8000 units)
   - Create BufferGeometry with position, color, and size attributes
 
-- [ ] 3.3 Configure cloud material and rendering
+- [x] 3.3 Configure cloud material and rendering
   - Create PointsMaterial with nebula texture
   - Set vertexColors, transparent, and additive blending
   - Set initial opacity to 0.0 (invisible)

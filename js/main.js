@@ -1,7 +1,7 @@
 import { scene, camera, renderer, addStarLight } from './core/scene.js';
 import { keys, mouse, smoothedMouse, initInput } from './core/input.js';
 import { initUI, updateHUD } from './core/ui.js';
-import { createStarTexture, createNoiseTexture } from './utils/textureUtils.js';
+import { createStarTexture, createNoiseTexture, loadGalaxyTextures } from './utils/textureUtils.js';
 import { createGalaxy, createMilkyWay } from './objects/galaxy.js';
 import { addSystemDetails, createPlanet, createAsteroidBelt } from './objects/solarSystem.js';
 import { createBlackHole, bhPos } from './objects/blackHole.js';
@@ -31,16 +31,35 @@ window.rendererDetector = rendererDetector;
 initInput();
 initUI(document.getElementById('compass-tape'));
 
-// Environment
-const galaxyData = createGalaxy(scene, starTexture);
-// createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
+// Load galaxy textures and initialize galaxy with cloud system
+let galaxyData;
+let galaxyLOD;
 
-// Initialize LOD System
-const galaxyLOD = new GalaxyLODSystem(galaxyData.group, camera);
-galaxyLOD.setParticleSystem(galaxyData.particleSystem);
-// Cloud and spiral systems will be set in later phases
-// galaxyLOD.setCloudSystem(galaxyData.cloudSystem);
-// galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
+loadGalaxyTextures().then(textures => {
+    // Create galaxy with nebula texture for cloud system
+    galaxyData = createGalaxy(scene, starTexture, textures.nebula);
+    
+    // Initialize LOD System
+    galaxyLOD = new GalaxyLODSystem(galaxyData.group, camera);
+    galaxyLOD.setParticleSystem(galaxyData.particleSystem);
+    
+    // Set cloud system if it was created
+    if (galaxyData.cloudSystem) {
+        galaxyLOD.setCloudSystem(galaxyData.cloudSystem);
+        console.log('✓ Cloud system integrated with LOD');
+    }
+    
+    // Spiral structure will be set in Phase 4
+    // galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
+}).catch(error => {
+    console.error('Failed to load galaxy textures, creating galaxy without clouds:', error);
+    // Fallback: create galaxy without cloud system
+    galaxyData = createGalaxy(scene, starTexture);
+    galaxyLOD = new GalaxyLODSystem(galaxyData.group, camera);
+    galaxyLOD.setParticleSystem(galaxyData.particleSystem);
+});
+
+// createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
 
 // Starfield & Dust
 const starGeo = new THREE.BufferGeometry();
@@ -214,8 +233,10 @@ function animate() {
     bhMaterial.uniforms.iTime.value = time;
     bhMaterial.uniforms.cameraPos.value.copy(camera.position);
 
-    // Update Galaxy LOD System
-    galaxyLOD.update();
+    // Update Galaxy LOD System (if loaded)
+    if (galaxyLOD) {
+        galaxyLOD.update();
+    }
 
     // Planet/Glow Animation
     planetMeshes.forEach(mesh => {
