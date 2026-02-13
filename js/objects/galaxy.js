@@ -62,6 +62,110 @@ function createCloudParticles(nebulaTexture) {
     return new THREE.Points(geometry, material);
 }
 
+/**
+ * Create spiral arm structure for outer galaxy view
+ * @param {THREE.Texture} starTexture - Star texture for rendering
+ * @returns {THREE.Group} Spiral structure group containing arms and dust lanes
+ */
+function createSpiralStructure(starTexture) {
+    const group = new THREE.Group();
+    
+    // Enhanced spiral arms with 4 arms
+    const armCount = 4;
+    const particlesPerArm = 15000;
+    
+    for (let arm = 0; arm < armCount; arm++) {
+        const armGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particlesPerArm * 3);
+        const colors = new Float32Array(particlesPerArm * 3);
+        
+        const baseAngle = (arm / armCount) * Math.PI * 2;
+        
+        for (let i = 0; i < particlesPerArm; i++) {
+            const i3 = i * 3;
+            
+            // Logarithmic spiral
+            const t = i / particlesPerArm;
+            const r = 30000 + t * 220000;
+            const theta = baseAngle + t * Math.PI * 3 + (Math.random() - 0.5) * 0.8;
+            
+            positions[i3] = Math.cos(theta) * r;
+            positions[i3 + 1] = (Math.random() - 0.5) * (1000 + r * 0.05);
+            positions[i3 + 2] = Math.sin(theta) * r;
+            
+            // Color gradient
+            const color = new THREE.Color();
+            if (r < 80000) {
+                // Core: yellow-orange
+                color.setHSL(0.08, 0.9, 0.65);
+            } else {
+                // Arms: blue-white
+                color.setHSL(0.6, 0.6, 0.8);
+            }
+            
+            colors[i3] = color.r;
+            colors[i3 + 1] = color.g;
+            colors[i3 + 2] = color.b;
+        }
+        
+        armGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        armGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const armMaterial = new THREE.PointsMaterial({
+            size: 4000,
+            map: starTexture,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.0, // Start invisible
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        
+        group.add(new THREE.Points(armGeometry, armMaterial));
+    }
+    
+    // Dust lanes (dark regions between arms)
+    const dustGeometry = new THREE.BufferGeometry();
+    const dustCount = 10000;
+    const dustPositions = new Float32Array(dustCount * 3);
+    const dustColors = new Float32Array(dustCount * 3);
+    
+    for (let i = 0; i < dustCount; i++) {
+        const i3 = i * 3;
+        
+        // Position between arms
+        const r = 80000 + Math.random() * 170000;
+        const armOffset = Math.PI / armCount; // Between arms
+        const theta = Math.random() * Math.PI * 2 + armOffset;
+        
+        dustPositions[i3] = Math.cos(theta) * r;
+        dustPositions[i3 + 1] = (Math.random() - 0.5) * (2000 + r * 0.08);
+        dustPositions[i3 + 2] = Math.sin(theta) * r;
+        
+        // Dark brown/black
+        const color = new THREE.Color(0.05, 0.03, 0.02);
+        dustColors[i3] = color.r;
+        dustColors[i3 + 1] = color.g;
+        dustColors[i3 + 2] = color.b;
+    }
+    
+    dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    dustGeometry.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
+    
+    const dustMaterial = new THREE.PointsMaterial({
+        size: 6000,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.0, // Start invisible
+        depthWrite: false,
+        blending: THREE.NormalBlending
+    });
+    
+    group.add(new THREE.Points(dustGeometry, dustMaterial));
+    
+    return group;
+}
+
 export function createGalaxy(scene, starTexture, nebulaTexture = null) {
     const galGroup = new THREE.Group();
     galGroup.position.set(3000000, 1500000, -4000000);
@@ -143,14 +247,18 @@ export function createGalaxy(scene, starTexture, nebulaTexture = null) {
         galGroup.add(cloudSystem);
     }
 
+    // Create spiral structure for outer view
+    const spiralStructure = createSpiralStructure(starTexture);
+    galGroup.add(spiralStructure);
+
     scene.add(galGroup);
     
-    // Return galaxy group and particle system for LOD integration
+    // Return galaxy group and systems for LOD integration
     return {
         group: galGroup,
         particleSystem: particleSystem,
         cloudSystem: cloudSystem,
-        spiralStructure: null  // To be added in Phase 4
+        spiralStructure: spiralStructure
     };
 }
 

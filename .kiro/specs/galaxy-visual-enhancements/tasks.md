@@ -68,7 +68,7 @@
 
 ## Phase 4: Spiral Structure Enhancement
 
-- [ ] 4.1 Create spiral arm structure
+- [x] 4.1 Create spiral arm structure
   - Implement `createSpiralStructure()` method in galaxy.js
   - Generate 4 spiral arms with 15,000 particles each
   - Implement logarithmic spiral algorithm
@@ -76,7 +76,7 @@
   - Create BufferGeometry and PointsMaterial for each arm
   - Add all arms to spiral structure group
 
-- [ ] 4.2 Create dust lane system
+- [x] 4.2 Create dust lane system
   - Generate 10,000 dust particles between spiral arms
   - Position particles with armOffset calculation
   - Apply dark brown/black colors
@@ -84,7 +84,7 @@
   - Use NormalBlending instead of AdditiveBlending
   - Add dust system to spiral structure group
 
-- [ ] 4.3 Integrate spiral structure with LOD
+- [x] 4.3 Integrate spiral structure with LOD
   - Add spiral structure group to galaxy
   - Set initial opacity to 0.0 (invisible)
   - Connect to LOD system for visibility control

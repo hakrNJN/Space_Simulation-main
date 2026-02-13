@@ -7,7 +7,7 @@ import {
     normalView, reflect, normalize, positionViewDirection, asin, positionView, mx_rgbtohsv, mx_hsvtorgb, positionWorld,
     positionGeometry, modelWorldMatrix, objectPosition, userData, rotate, mat3, mul, mx_fractal_noise_vec3, faceDirection,
     inverse, modelViewMatrix, transformDirection, modelViewPosition, modelWorldMatrixInverse, cameraWorldMatrix,
-    cameraPosition, positionWorldDirection, sub, dot, Loop, length, remap, remapClamp, lengthSq, equirectUV, Break
+    cameraPosition, positionWorldDirection, sub, dot, Loop, length, remap, remapClamp, lengthSq, equirectUV
 } from 'three/tsl';
 
 // Import TSL utilities
@@ -20,6 +20,10 @@ import {
 /**
  * SingularityBlackHole - Volumetric raymarched black hole
  * Direct port from Singularity repository
+ * 
+ * CRITICAL: This black hole uses a UNIT SPHERE (radius 1.0) for raymarching
+ * The shader works in normalized space [-1, 1]
+ * Scale is controlled by the mesh scale, NOT the geometry radius
  */
 export class SingularityBlackHole {
     constructor() {
@@ -35,6 +39,13 @@ export class SingularityBlackHole {
         // Alias for BaseSystem compatibility
         this.group = this.container;
 
+        // Textures
+        this.noiseTexture = null;
+        this.starsTexture = null;
+
+        // Mesh
+        this.mesh = null;
+        
         // Uniforms for black hole shader
         this.uniforms = {
             iterations: uniform(float(128)),
@@ -57,13 +68,6 @@ export class SingularityBlackHole {
 
             backgroundIntensity: uniform(float(1.0))
         };
-
-        // Textures
-        this.noiseTexture = null;
-        this.starsTexture = null;
-
-        // Mesh
-        this.mesh = null;
     }
 
     /**
@@ -109,7 +113,7 @@ export class SingularityBlackHole {
     }
 
     /**
-     * Create temporary starfield texture
+     * Create starfield texture for background
      */
     createStarfieldTexture() {
         const size = 1024;
@@ -139,40 +143,21 @@ export class SingularityBlackHole {
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.needsUpdate = true;
 
-        // Initialize TSL Uniforms here, once textures are ready (or even before)
-        // But we need them before build() calls createTSLMaterial
-        this.uniforms = {
-            stepSize: uniform(0.0071),
-            noiseFactor: uniform(2.0), // Noise amp
-            power: uniform(0.3),
-            originRadius: uniform(0.13),
-            width: uniform(0.03),
-            iterations: uniform(64), // int
-
-            // Color Ramp
-            rampCol1: uniform(color(0.95, 0.71, 0.44)),
-            rampPos1: uniform(0.050),
-            rampCol2: uniform(color(0.14, 0.05, 0.03)),
-            rampPos2: uniform(0.425),
-            rampCol3: uniform(color(0.0, 0.0, 0.0)),
-            rampPos3: uniform(1.0),
-
-            rampEmission: uniform(2.0),
-            emissionColor: uniform(color(0.14, 0.129, 0.09)),
-            backgroundIntensity: uniform(1.0)
-        };
-
         return texture;
     }
 
     /**
      * Build the black hole mesh and material
+     * 
+     * CRITICAL: Uses UNIT SPHERE (radius 1.0) and scales the mesh
+     * This matches the Singularity implementation exactly
      */
     async build() {
         await this.loadTextures();
 
-        // Create LARGE sphere geometry - 50K radius so it's visible from far away
-        const geometry = new THREE.SphereGeometry(50000, 64, 64);
+        // UNIT SPHERE - radius 1.0 (Singularity uses this)
+        // Scale is applied to the mesh, not the geometry
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
 
         // Create material based on renderer type
         let material;
@@ -185,17 +170,27 @@ export class SingularityBlackHole {
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.name = 'BlackHoleMesh';
+        
+        // SCALE THE MESH - Start at minimum
+        this.mesh.scale.setScalar(15000);
+        
         this.mesh.frustumCulled = false; // Always render, don't cull
         this.mesh.renderOrder = 999; // Render on top
+        this.mesh.visible = true; // Controlled by opacity
+        
+        // Set initial opacity to 0
+        if (material.opacity !== undefined) {
+            material.opacity = 0;
+        }
+        
         this.container.add(this.mesh);
         this.scene.add(this.container);
 
         console.log('✓ Black hole mesh created');
         console.log(`  - Renderer: ${this.isWebGPU ? 'WebGPU (TSL)' : 'WebGL (GLSL)'}`);
         console.log(`  - Position: (${this.container.position.x}, ${this.container.position.y}, ${this.container.position.z})`);
-        console.log(`  - Radius: 50,000 units`);
-        console.log(`  - Mesh in scene:`, this.scene.getObjectByName('BlackHoleMesh') !== undefined);
-        console.log(`  - Material type:`, material.type);
+        console.log(`  - Geometry radius: 1.0 (unit sphere)`);
+        console.log(`  - Glow: 2.5M→1M fade in, 1M→800K fade out`);
     }
 
     /**
@@ -203,15 +198,15 @@ export class SingularityBlackHole {
      */
     createTSLMaterial() {
         const material = new ThreeWebGPU.MeshStandardNodeMaterial({
-            side: THREE.BackSide, // Render on inside of sphere for raymarching
-            transparent: true,
-            blending: THREE.NormalBlending
+            side: THREE.DoubleSide,
+            transparent: true,  // Enable transparency for glow fade
+            depthWrite: false,  // Disable depth write to prevent flickering
+            depthTest: true
         });
 
         // Store texture references for use in shader
         const noiseTexture = this.noiseTexture;
         const starsTexture = this.starsTexture;
-        // Use local reference to uniforms for cleaner code in Fn
         const uniforms = this.uniforms;
 
         material.colorNode = Fn(() => {
@@ -224,36 +219,22 @@ export class SingularityBlackHole {
             const iterCount = uniforms.iterations;
 
             // ==== Geometry- and view-dependent bases ====
-            // Object Space Coords: Normalized to Unit Sphere range [-1, 1]
-            // We must divide by the mesh radius (50000.0) to get into unit space for the raymarcher
-            const meshRadius = float(50000.0);
-
-            // Normalize geometry position
-            const normalizedPos = positionGeometry.div(meshRadius);
-            const objCoords = normalizedPos.mul(vec3(1, 1, -1)).xzy; // flip Z then swizzle
+            // CRITICAL: Singularity uses UNIT SPHERE coordinates [-1, 1]
+            const objCoords = positionGeometry.mul(vec3(1, 1, -1)).xzy; // flip Z then swizzle
             const isBackface = step(0.0, faceDirection.negate());        // 1 backface, 0 front
 
-            // Camera as point in object space (also normalized)
-            // Assuming object is at 0,0,0 and no rotation, world-local is identity-ish
-            // But to be safe, we transform camera to local space
-            // Since we are using TSL, 'cameraPosition' is world space. 
-            // 'objectPosition' is world space center.
-            const camLocal = cameraPosition.sub(objectPosition).div(meshRadius);
-
-            // Map to TSL shader space
-            const camPointObj = camLocal.mul(vec3(1, 1, -1)).xzy;
+            // Camera as point in object space
+            const camPointObj = cameraPosition.mul(modelWorldMatrix).mul(vec3(1, 1, -1)).xzy;
 
             // Pick coords from camera for backfaces, from geometry for frontfaces
             const startCoords = mix(objCoords, camPointObj.xyz, isBackface);
 
-            // Incoming view direction in world
-            // Direction is scale-invariant, so we can use standard world positions
-            const viewDir = normalize(sub(positionWorld, cameraPosition));
+            // Incoming view direction in world, then to object-like swizzle
+            const viewInWorld = normalize(sub(cameraPosition, positionWorld))
+                .mul(vec3(1, 1, -1)).xzy;
+            const rayDir = viewInWorld.negate(); // initial march direction
 
-            // Transform to our swizzled object space
-            const rayDir = viewDir.mul(vec3(1, 1, -1)).xzy;
-
-            // White noise to jitter start to reduce banding
+            // White noise to jitter start
             const noiseWhite = whiteNoise2D(objCoords.xy).mul(noiseAmp);
             const jitter = rayDir.mul(noiseWhite);
 
@@ -265,18 +246,16 @@ export class SingularityBlackHole {
             const alphaAcc = float(0.0);
 
             // ==== Main loop ====
-            // Use explicit Loop syntax to avoid ambiguity or unrolled Fn issues
-            // We use a constant 64 for now to ensure stability, as dynamic loops on uniforms can be tricky in TSL
-            Loop({ start: 0, end: 64, type: 'int' }, ({ i }) => {
-                // Steering term toward center (gravity lensing simulation)
+            Loop(iterCount, ({ i }) => {
+                // Steering term toward center (gravity lensing)
                 const rNorm = normalize(rayPos);
                 const rLen = lengthSqrt(rayPos);
                 const steerMag = _step.mul(power).div(rLen.mul(rLen));       // step*power / r^2
-                const range = remapClamp(rLen, 1.0, 0.5, 0.0, 1.0);         // fade steering effect
+                const range = remapClamp(rLen, 1.0, 0.5, 0.0, 1.0);         // fade steering
                 const steer = rNorm.mul(steerMag.mul(range));
                 const steeredDir = rayDir.sub(steer).normalize();
 
-                // Advance ray
+                // Advance once
                 const advance = rayDir.mul(_step);
                 rayPos.addAssign(advance);
 
@@ -288,7 +267,7 @@ export class SingularityBlackHole {
                 const uv = uvRot.mul(2);
 
                 // Deep noise sample
-                const noiseDeep = texture(noiseTexture, uv.xy);
+                const noiseDeep = texture(noiseTexture, uv);
 
                 // Z band shaping (disk thickness)
                 const bandMin = bandWidth.negate();
@@ -303,7 +282,7 @@ export class SingularityBlackHole {
 
                 // Pseudo normal via offset noise
                 const uvForNormal = uv.mul(1.002);
-                const noiseNormal = texture(noiseTexture, uvForNormal.xy)
+                const noiseNormal = texture(noiseTexture, uvForNormal)
                     .mul(zBand);
                 const noiseNormalLen = lengthSqrt(noiseNormal);
 
@@ -348,10 +327,7 @@ export class SingularityBlackHole {
             });
 
             // ==== Environment blend on remaining transparency ====
-            // Lensing effect on background stars
             const dirForEnv = rayDir.mul(vec3(1, -1, 1)).xzy;
-
-            // Note: We use linearToSrgb because texture read might be linear in NodeMaterial
             const env = linearToSrgb(
                 texture(starsTexture, equirectUV(dirForEnv)).mul(uniforms.backgroundIntensity)
             );
@@ -364,7 +340,7 @@ export class SingularityBlackHole {
 
         material.emissiveNode = material.colorNode;
 
-        console.log('✓ TSL black hole material created (Full Shader)');
+        console.log('✓ TSL black hole material created');
 
         return material;
     }
@@ -373,32 +349,12 @@ export class SingularityBlackHole {
      * Create GLSL fallback material for WebGL
      */
     createGLSLMaterial() {
-        // Create a proper volumetric black hole shader for WebGL
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
                 noiseTexture: { value: this.noiseTexture },
                 starsTexture: { value: this.starsTexture },
-                camPos: { value: new THREE.Vector3() },
-
-                // Black hole parameters
-                iterations: { value: 64 },
-                stepSize: { value: 0.0071 },
-                power: { value: 0.3 },
-                originRadius: { value: 0.13 },
-                width: { value: 0.03 },
-
-                // Color ramp
-                rampCol1: { value: new THREE.Color(0.95, 0.71, 0.44) },
-                rampPos1: { value: 0.050 },
-                rampCol2: { value: new THREE.Color(0.14, 0.05, 0.03) },
-                rampPos2: { value: 0.425 },
-                rampCol3: { value: new THREE.Color(0, 0, 0) },
-                rampPos3: { value: 1.0 },
-
-                rampEmission: { value: 2.0 },
-                emissionColor: { value: new THREE.Color(0.14, 0.129, 0.09) },
-                backgroundIntensity: { value: 1.0 }
+                camPos: { value: new THREE.Vector3() }
             },
             vertexShader: `
                 varying vec3 vPosition;
@@ -417,40 +373,31 @@ export class SingularityBlackHole {
                 varying vec3 vWorldPosition;
                 
                 void main() {
-                    // Normalize position
+                    // Simple accretion disk visualization for WebGL fallback
                     vec3 dir = normalize(vPosition);
-                    
-                    // Distance from center in XY plane
                     float diskRadius = length(dir.xy);
-                    
-                    // Z height - THIS IS KEY for making it a disk, not a sphere
                     float height = abs(dir.z);
                     
-                    // DISK ONLY - visible only when Z is small (flat disk)
+                    // Disk shape
                     float diskThickness = smoothstep(0.15, 0.0, height);
-                    
-                    // Disk ring - hollow center for black hole
                     float diskInner = smoothstep(0.25, 0.35, diskRadius);
                     float diskOuter = smoothstep(0.95, 0.85, diskRadius);
                     float diskMask = diskInner * diskOuter * diskThickness;
                     
                     // Color gradient
-                    vec3 innerColor = vec3(1.5, 1.0, 0.3);  // Bright yellow
-                    vec3 outerColor = vec3(1.0, 0.3, 0.1);  // Orange-red
+                    vec3 innerColor = vec3(1.5, 1.0, 0.3);
+                    vec3 outerColor = vec3(1.0, 0.3, 0.1);
                     vec3 diskColor = mix(innerColor, outerColor, diskRadius);
                     
                     // Spiral animation
                     float angle = atan(dir.y, dir.x);
                     float spiral = sin(angle * 8.0 + time * 0.4 - diskRadius * 12.0) * 0.3 + 0.7;
-                    diskColor *= spiral;
+                    diskColor *= spiral * 4.0;
                     
-                    // Brightness
-                    diskColor *= 4.0;
-                    
-                    // Apply disk mask - if not in disk, make it BLACK
+                    // Apply disk mask
                     vec3 finalColor = diskColor * diskMask;
                     
-                    // Event horizon - completely black center
+                    // Event horizon
                     float horizonMask = step(diskRadius, 0.3);
                     finalColor = mix(finalColor, vec3(0.0), horizonMask);
                     
@@ -471,22 +418,68 @@ export class SingularityBlackHole {
 
     /**
      * Update black hole (called every frame)
-     */
-    /**
-     * Update black hole (called every frame)
+     * Dynamically scale based on distance for proper visibility
+     * 
+     * GLOW BEHAVIOR:
+     * - >2.5M: No glow (invisible)
+     * - 2.5M → 1M: Glow fades IN, appears and grows
+     * - 1M → 800K: Glow fades OUT, disappears
+     * - <800K: Black hole accretion disk visible (no glow)
      */
     update(delta, time, camera) {
-        // TSL Uniforms update (WebGPU)
-        if (this.isWebGPU) {
-            // TSL utilizes global 'time' node usually, but if we used uniforms:
-            // this.uniforms.time does not exist because we used 'time' node from three/tsl
-            // However, we might want to update other uniforms if they change
+        if (!this.mesh) return;
 
-            // Example: Pulsing effect or similar could go here if we had a specific uniform for it
-            // For now, TSL 'time' node handles animation automatically.
+        // Calculate distance from camera to black hole
+        const distance = camera.position.length(); // Distance from galactic center
+
+        let targetScale;
+        let targetOpacity;
+        
+        if (distance > 2500000) {
+            // Very far (>2.5M) - No glow
+            targetScale = 15000;
+            targetOpacity = 0.0;
+        } else if (distance > 1000000) {
+            // Far range (2.5M → 1M) - Glow fades IN and grows
+            const t = (2500000 - distance) / (2500000 - 1000000); // 0 → 1 as we get closer
+            targetScale = 15000 + t * 25000; // 15K → 40K
+            targetOpacity = t; // 0.0 → 1.0
+        } else if (distance > 800000) {
+            // Transition (1M → 800K) - Glow fades OUT
+            const t = (distance - 800000) / (1000000 - 800000); // 1 → 0 as we get closer
+            targetScale = 40000;
+            targetOpacity = t; // 1.0 → 0.0
+        } else if (distance > 250000) {
+            // Outer zone (800K → 250K) - Black hole accretion disk (no glow)
+            const t = (800000 - distance) / (800000 - 250000);
+            targetScale = 15000 + t * 25000; // 15K → 40K
+            targetOpacity = 1.0; // Fully visible
+        } else {
+            // Black hole zone (<250K) - Large accretion disk
+            const t = Math.min(1.0, (250000 - distance) / 200000);
+            targetScale = 40000 + t * 40000; // 40K → 80K
+            targetOpacity = 1.0; // Fully visible
         }
 
-        // GLSL Uniforms update (WebGL Fallback)
+        // Smooth scale transition
+        const currentScale = this.mesh.scale.x;
+        const newScale = currentScale + (targetScale - currentScale) * 0.02;
+        this.mesh.scale.setScalar(newScale);
+        
+        // Smooth opacity transition
+        if (this.mesh.material.opacity !== undefined) {
+            const currentOpacity = this.mesh.material.opacity;
+            const newOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.05;
+            this.mesh.material.opacity = newOpacity;
+            
+            // Only hide when completely transparent
+            this.mesh.visible = newOpacity > 0.01;
+        } else {
+            // Fallback
+            this.mesh.visible = targetOpacity > 0.01;
+        }
+
+        // Update GLSL uniforms (WebGL fallback)
         if (this.material && this.material.uniforms) {
             this.material.uniforms.time.value = time;
             if (camera) this.material.uniforms.camPos.value.copy(camera.position);
@@ -499,6 +492,4 @@ export class SingularityBlackHole {
     getDistanceFrom(pos) {
         return this.container.position.distanceTo(pos);
     }
-
-    // getTargetables moved to init/class structure above
 }

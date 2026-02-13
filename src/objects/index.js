@@ -24,9 +24,11 @@ import { DeepSpaceObjects } from './DeepSpaceObjects.js';
 // import { GalaxyDistanceLOD as GalaxyDistanceLOD_V6 } from './GalaxyDistanceLOD_V6.js';
 // import { GalaxyDistanceLOD } from './GalaxyDistanceLOD.js'; // V1 (Stable)
 // import { GalaxyDistanceLOD as GalaxyDistanceLOD_V2 } from './GalaxyDistanceLOD_V2.js'; // V2 (Laggy)
-import { GalaxyDistanceLOD as GalaxyDistanceLOD_V3 } from './GalaxyDistanceLOD_V3.js'; // V3 (Performance/Sparse)
+import { GalaxyDistanceLOD as GalaxyDistanceLOD_V3 } from './GalaxyDistanceLOD_V3.js'; // V3 (Performance/Sparse) - ACTIVE
 // import { GalaxyDistanceLOD as GalaxyDistanceLOD_V4 } from './GalaxyDistanceLOD_V4.js'; // V4 (Hardware Limit)
 // import { GalaxyDistanceLOD as GalaxyDistanceLOD_V5 } from './GalaxyDistanceLOD_V5.js'; // V5 (Device Hung)
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V7 } from './GalaxyDistanceLOD_V7.js'; // V7 (Failed)
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V8 } from './GalaxyDistanceLOD_V8.js'; // V8 (Failed)
 
 const GalaxyDistanceLOD = GalaxyDistanceLOD_V3; // Alias for export
 
@@ -76,10 +78,7 @@ export function createAllSystems() {
         new GalaxyDistanceLOD(),  // Heavy Density Layer (Visible at Distance)
 
         // === Galactic Center ===
-        // TODO: Replace with Singularity black hole
-        // new SagittariusAStar(),
-        // new SingularityBlackHole(), // Disabled to fix TSL Error momentarily
-        // new SagittariusAStar(),
+        new SingularityBlackHole(), // Sagittarius A* black hole
 
         // === Star Systems (Milky Way disk) ===
         new SolarSystem(),

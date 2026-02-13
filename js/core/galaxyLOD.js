@@ -183,6 +183,7 @@ export class GalaxyLODSystem {
             }
             
             this.particleSystem.material.opacity = opacity;
+            this.particleSystem.material.needsUpdate = true;
             this.particleSystem.visible = opacity > 0.01;
             
         } catch (error) {
@@ -207,6 +208,7 @@ export class GalaxyLODSystem {
             }
             
             this.cloudSystem.material.opacity = opacity;
+            this.cloudSystem.material.needsUpdate = true;
             this.cloudSystem.visible = opacity > 0.01;
             
         } catch (error) {
@@ -229,6 +231,7 @@ export class GalaxyLODSystem {
             this.spiralStructure.traverse((child) => {
                 if (child.material) {
                     child.material.opacity = visibility;
+                    child.material.needsUpdate = true;
                 }
             });
             
@@ -251,6 +254,17 @@ export class GalaxyLODSystem {
             
             // Calculate blend factors for this distance
             const factors = this.calculateBlendFactors(distance);
+            
+            // Debug logging (only log occasionally to avoid spam)
+            if (Math.random() < 0.01) { // Log ~1% of frames
+                console.log('LOD Update:', {
+                    distance: Math.round(distance),
+                    particleOpacity: factors.particleOpacity.toFixed(2),
+                    cloudOpacity: factors.cloudOpacity.toFixed(2),
+                    spiralVisibility: factors.spiralVisibility.toFixed(2),
+                    hasSpiralStructure: !!this.spiralStructure
+                });
+            }
             
             // Update all systems
             this.updateParticleOpacity(factors.particleOpacity);

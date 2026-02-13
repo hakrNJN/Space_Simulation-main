@@ -4,7 +4,6 @@ import { initUI, updateHUD } from './core/ui.js';
 import { createStarTexture, createNoiseTexture, loadGalaxyTextures } from './utils/textureUtils.js';
 import { createGalaxy, createMilkyWay } from './objects/galaxy.js';
 import { addSystemDetails, createPlanet, createAsteroidBelt } from './objects/solarSystem.js';
-import { createBlackHole, bhPos } from './objects/blackHole.js';
 import { createCrabNebula } from './objects/crabNebula.js';
 import { RendererDetector } from './utils/rendererDetector.js';
 import { GalaxyLODSystem } from './core/galaxyLOD.js';
@@ -49,14 +48,22 @@ loadGalaxyTextures().then(textures => {
         console.log('✓ Cloud system integrated with LOD');
     }
     
-    // Spiral structure will be set in Phase 4
-    // galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
+    // Set spiral structure
+    if (galaxyData.spiralStructure) {
+        galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
+        console.log('✓ Spiral structure integrated with LOD');
+    }
 }).catch(error => {
     console.error('Failed to load galaxy textures, creating galaxy without clouds:', error);
     // Fallback: create galaxy without cloud system
     galaxyData = createGalaxy(scene, starTexture);
     galaxyLOD = new GalaxyLODSystem(galaxyData.group, camera);
     galaxyLOD.setParticleSystem(galaxyData.particleSystem);
+    
+    // Still set spiral structure even without textures
+    if (galaxyData.spiralStructure) {
+        galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
+    }
 });
 
 // createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
@@ -107,14 +114,6 @@ rings.rotation.x = Math.PI / 2;
 saturn.add(rings);
 createPlanet(solarGroup, planetMeshes, 600, 45000, '#ACDFE8', '#4FB6D6', 'gas', 'Uranus', -1.5);
 createPlanet(solarGroup, planetMeshes, 580, 55000, '#4B70DD', '#27439C', 'gas', 'Neptune', 1.8);
-
-// Black Hole
-const bhGroup = new THREE.Group();
-bhGroup.position.copy(bhPos);
-scene.add(bhGroup);
-const bhMaterial = createBlackHole(bhGroup);
-planetMeshes.push({ position: bhGroup.position, userData: { name: "GARGANTUA", isSystem: true, baseScale: 20000 } });
-const bhDebris = createAsteroidBelt(bhGroup, 150, 30000, 45000, '#553322', asteroidTexture, animatedBelts);
 
 // Crab Nebula with Pulsar (Neutron Star) at center
 const crabNebulaPos = new THREE.Vector3(600000, -10000, 600000);
@@ -228,10 +227,6 @@ function animate() {
     dustSystem.position.x = Math.floor(camera.position.x / range) * range;
     dustSystem.position.y = Math.floor(camera.position.y / range) * range;
     dustSystem.position.z = Math.floor(camera.position.z / range) * range;
-
-    // Shader Uniforms
-    bhMaterial.uniforms.iTime.value = time;
-    bhMaterial.uniforms.cameraPos.value.copy(camera.position);
 
     // Update Galaxy LOD System (if loaded)
     if (galaxyLOD) {

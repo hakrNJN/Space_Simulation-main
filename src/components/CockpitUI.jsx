@@ -91,8 +91,13 @@ const CockpitUI = () => {
                     className="teleport-btn"
                     onClick={() => {
                         if (engineRef.current && engineRef.current.camera) {
-                            // Teleport to Galactic Center (transition zone)
-                            engineRef.current.camera.position.set(50000, 5000, 50000);
+                            // Teleport just outside Outer Zone (805K from center)
+                            // Position at 805K distance from galactic center
+                            const distance = 805000;
+                            // Place in front (positive X axis)
+                            engineRef.current.camera.position.set(distance, 0, 0);
+                            // Look toward center
+                            engineRef.current.camera.lookAt(0, 0, 0);
                             engineRef.current.state.speed = 0;
                         }
                     }}
@@ -103,8 +108,11 @@ const CockpitUI = () => {
                     className="teleport-btn"
                     onClick={() => {
                         if (engineRef.current && engineRef.current.camera) {
-                            // Teleport to Black Hole Zone
-                            engineRef.current.camera.position.set(15000, 2000, 15000);
+                            // Teleport 100K in front of Black Hole
+                            // Position at 100K from center on positive X axis
+                            engineRef.current.camera.position.set(100000, 0, 0);
+                            // Look at black hole at center
+                            engineRef.current.camera.lookAt(0, 0, 0);
                             engineRef.current.state.speed = 0;
                         }
                     }}
