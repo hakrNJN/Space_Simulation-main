@@ -36,7 +36,8 @@ export function createGalaxy(scene, starTexture) {
     const starMat = new THREE.PointsMaterial({
         size: 800, map: starTexture, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending
     });
-    galGroup.add(new THREE.Points(starGeo, starMat));
+    const particleSystem = new THREE.Points(starGeo, starMat);
+    galGroup.add(particleSystem);
 
     const dustGeo = new THREE.BufferGeometry();
     const dustCount = 20000;
@@ -74,6 +75,14 @@ export function createGalaxy(scene, starTexture) {
     galGroup.add(core);
 
     scene.add(galGroup);
+    
+    // Return galaxy group and particle system for LOD integration
+    return {
+        group: galGroup,
+        particleSystem: particleSystem,
+        cloudSystem: null,  // To be added in Phase 3
+        spiralStructure: null  // To be added in Phase 4
+    };
 }
 
 // Milky Way band - REMOVED

@@ -6,6 +6,8 @@ import { createGalaxy, createMilkyWay } from './objects/galaxy.js';
 import { addSystemDetails, createPlanet, createAsteroidBelt } from './objects/solarSystem.js';
 import { createBlackHole, bhPos } from './objects/blackHole.js';
 import { createCrabNebula } from './objects/crabNebula.js';
+import { RendererDetector } from './utils/rendererDetector.js';
+import { GalaxyLODSystem } from './core/galaxyLOD.js';
 
 // --- SETUP ---
 const starTexture = createStarTexture();
@@ -18,12 +20,27 @@ const euler = new THREE.Euler(0, 0, 0, 'YXZ');
 let speed = 0;
 const friction = 0.98;
 
+// Initialize RendererDetector and store globally
+const rendererDetector = new RendererDetector(renderer);
+rendererDetector.logRendererInfo();
+
+// Store renderer type as global/static property for access by other modules
+window.rendererType = rendererDetector.getRendererType();
+window.rendererDetector = rendererDetector;
+
 initInput();
 initUI(document.getElementById('compass-tape'));
 
 // Environment
-createGalaxy(scene, starTexture);
+const galaxyData = createGalaxy(scene, starTexture);
 // createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
+
+// Initialize LOD System
+const galaxyLOD = new GalaxyLODSystem(galaxyData.group, camera);
+galaxyLOD.setParticleSystem(galaxyData.particleSystem);
+// Cloud and spiral systems will be set in later phases
+// galaxyLOD.setCloudSystem(galaxyData.cloudSystem);
+// galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
 
 // Starfield & Dust
 const starGeo = new THREE.BufferGeometry();
@@ -196,6 +213,9 @@ function animate() {
     // Shader Uniforms
     bhMaterial.uniforms.iTime.value = time;
     bhMaterial.uniforms.cameraPos.value.copy(camera.position);
+
+    // Update Galaxy LOD System
+    galaxyLOD.update();
 
     // Planet/Glow Animation
     planetMeshes.forEach(mesh => {
