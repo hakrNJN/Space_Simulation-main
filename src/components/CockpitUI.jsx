@@ -19,16 +19,16 @@ const CockpitUI = () => {
 
     useEffect(() => {
         if (!mountRef.current) return;
-        
+
         // Prevent double initialization in StrictMode
         let mounted = true;
 
         const initEngine = async () => {
             if (!mounted) return;
-            
+
             engineRef.current = new SpaceEngine(mountRef.current, (data) => {
                 if (!mounted) return;
-                
+
                 setHudData({
                     speed: Math.abs(data.speed).toFixed(0),
                     coords: {
@@ -46,7 +46,7 @@ const CockpitUI = () => {
                 });
             });
         };
-        
+
         initEngine();
 
         return () => {
@@ -75,7 +75,7 @@ const CockpitUI = () => {
 
             {/* Teleport Buttons */}
             <div className="teleport-buttons">
-                <button 
+                <button
                     className="teleport-btn"
                     onClick={() => {
                         if (engineRef.current && engineRef.current.camera) {
@@ -87,7 +87,7 @@ const CockpitUI = () => {
                 >
                     📍 SOLAR SYSTEM
                 </button>
-                <button 
+                <button
                     className="teleport-btn"
                     onClick={() => {
                         if (engineRef.current && engineRef.current.camera) {
@@ -99,7 +99,7 @@ const CockpitUI = () => {
                 >
                     📍 GALACTIC CENTER
                 </button>
-                <button 
+                <button
                     className="teleport-btn"
                     onClick={() => {
                         if (engineRef.current && engineRef.current.camera) {
@@ -110,6 +110,45 @@ const CockpitUI = () => {
                     }}
                 >
                     📍 BLACK HOLE
+                </button>
+                <button
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // View 1 (4M)
+                            engineRef.current.camera.position.set(0, 1500000, 4000000); // 4M distance
+                            engineRef.current.camera.lookAt(0, 0, 0);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    🔭 VIEW 4M
+                </button>
+                <button
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // View 2 (12M)
+                            engineRef.current.camera.position.set(0, 4000000, 12000000); // 12M distance
+                            engineRef.current.camera.lookAt(0, 0, 0);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    🔭 VIEW 12M
+                </button>
+                <button
+                    className="teleport-btn"
+                    onClick={() => {
+                        if (engineRef.current && engineRef.current.camera) {
+                            // View 3 (20M)
+                            engineRef.current.camera.position.set(0, 7000000, 20000000); // 20M distance
+                            engineRef.current.camera.lookAt(0, 0, 0);
+                            engineRef.current.state.speed = 0;
+                        }
+                    }}
+                >
+                    🔭 VIEW 20M
                 </button>
             </div>
 
@@ -182,9 +221,9 @@ const CockpitUI = () => {
                             {/* DEV: Distance from Galactic Center */}
                             <div className="data-row" style={{ marginTop: '10px', borderTop: '1px solid rgba(0,255,255,0.2)', paddingTop: '5px' }}>
                                 <div className="label" style={{ color: '#ff0' }}>GC DIST</div>
-                                <div className="data-value" style={{ 
-                                    color: hudData.zone === 'blackhole' ? '#f00' : 
-                                           hudData.zone === 'outer' ? '#ff0' : '#0ff',
+                                <div className="data-value" style={{
+                                    color: hudData.zone === 'blackhole' ? '#f00' :
+                                        hudData.zone === 'outer' ? '#ff0' : '#0ff',
                                     fontSize: '14px'
                                 }}>
                                     {hudData.distanceFromCenter.toFixed(0)} u
@@ -193,7 +232,7 @@ const CockpitUI = () => {
                             {hudData.zone !== 'normal' && (
                                 <div className="data-row">
                                     <div className="label" style={{ color: '#ff0' }}>ZONE</div>
-                                    <div className="data-value" style={{ 
+                                    <div className="data-value" style={{
                                         color: hudData.zone === 'blackhole' ? '#f00' : '#ff0',
                                         fontSize: '12px'
                                     }}>
@@ -257,7 +296,7 @@ const CockpitUI = () => {
                             </div>
                             {hudData.zone !== 'normal' && (
                                 <div className="data-row" style={{ justifyContent: 'flex-end', marginTop: '10px' }}>
-                                    <div className="data-value" style={{ 
+                                    <div className="data-value" style={{
                                         color: hudData.zone === 'blackhole' ? '#ff0' : '#f80',
                                         fontSize: '12px'
                                     }}>

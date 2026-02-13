@@ -21,7 +21,14 @@ import { Andromeda } from './Andromeda.js';
 import { Constellations } from './Constellations.js';
 import { BackgroundGalaxies } from './BackgroundGalaxies.js';
 import { DeepSpaceObjects } from './DeepSpaceObjects.js';
-import { GalaxyDistanceLOD } from './GalaxyDistanceLOD.js';
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V6 } from './GalaxyDistanceLOD_V6.js';
+// import { GalaxyDistanceLOD } from './GalaxyDistanceLOD.js'; // V1 (Stable)
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V2 } from './GalaxyDistanceLOD_V2.js'; // V2 (Laggy)
+import { GalaxyDistanceLOD as GalaxyDistanceLOD_V3 } from './GalaxyDistanceLOD_V3.js'; // V3 (Performance/Sparse)
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V4 } from './GalaxyDistanceLOD_V4.js'; // V4 (Hardware Limit)
+// import { GalaxyDistanceLOD as GalaxyDistanceLOD_V5 } from './GalaxyDistanceLOD_V5.js'; // V5 (Device Hung)
+
+const GalaxyDistanceLOD = GalaxyDistanceLOD_V3; // Alias for export
 
 // Re-export for external use
 export {
