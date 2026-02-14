@@ -33,8 +33,13 @@ initUI(document.getElementById('compass-tape'));
 // Load galaxy textures and initialize galaxy with cloud system
 let galaxyData;
 let galaxyLOD;
+let nebulaTexture = null; // Store nebula texture for Crab Nebula
+let crabNebula = null; // Store Crab Nebula reference
 
 loadGalaxyTextures().then(textures => {
+    // Store nebula texture for later use
+    nebulaTexture = textures.nebula;
+    
     // Create galaxy with nebula texture for cloud system
     galaxyData = createGalaxy(scene, starTexture, textures.nebula);
     
@@ -53,6 +58,15 @@ loadGalaxyTextures().then(textures => {
         galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
         console.log('✓ Spiral structure integrated with LOD');
     }
+    
+    // Create Crab Nebula with loaded nebula texture
+    const crabNebulaPos = new THREE.Vector3(600000, -10000, 600000);
+    const crabNebulaSize = 50000;
+    crabNebula = createCrabNebula(crabNebulaPos, crabNebulaSize, textures.nebula);
+    scene.add(crabNebula);
+    systemGroups.push(crabNebula);
+    planetMeshes.push({ position: crabNebula.position, userData: crabNebula.userData });
+    console.log('✓ Crab Nebula created with filament system');
 }).catch(error => {
     console.error('Failed to load galaxy textures, creating galaxy without clouds:', error);
     // Fallback: create galaxy without cloud system
@@ -64,6 +78,15 @@ loadGalaxyTextures().then(textures => {
     if (galaxyData.spiralStructure) {
         galaxyLOD.setSpiralStructure(galaxyData.spiralStructure);
     }
+    
+    // Create Crab Nebula without enhanced filaments (fallback)
+    const crabNebulaPos = new THREE.Vector3(600000, -10000, 600000);
+    const crabNebulaSize = 50000;
+    crabNebula = createCrabNebula(crabNebulaPos, crabNebulaSize, null);
+    scene.add(crabNebula);
+    systemGroups.push(crabNebula);
+    planetMeshes.push({ position: crabNebula.position, userData: crabNebula.userData });
+    console.log('⚠ Crab Nebula created without enhanced filaments (texture loading failed)');
 });
 
 // createMilkyWay(scene, starTexture);  // TEMPORARILY DISABLED FOR TESTING
@@ -115,23 +138,8 @@ saturn.add(rings);
 createPlanet(solarGroup, planetMeshes, 600, 45000, '#ACDFE8', '#4FB6D6', 'gas', 'Uranus', -1.5);
 createPlanet(solarGroup, planetMeshes, 580, 55000, '#4B70DD', '#27439C', 'gas', 'Neptune', 1.8);
 
-// Crab Nebula with Pulsar (Neutron Star) at center
-const crabNebulaPos = new THREE.Vector3(600000, -10000, 600000);
-const crabNebula = createCrabNebula(scene, starTexture, crabNebulaPos);
-
-const neutronGroup = new THREE.Group();
-neutronGroup.position.copy(crabNebulaPos);
-scene.add(neutronGroup);
-systemGroups.push(neutronGroup);
-planetMeshes.push({ position: neutronGroup.position, userData: { name: "CRAB NEBULA PULSAR", isSystem: true, baseScale: 20000 } });
-neutronGroup.add(new THREE.Mesh(new THREE.SphereGeometry(100, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff })));
-const neuGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTexture, color: 0x00ffff, blending: THREE.AdditiveBlending }));
-neuGlow.scale.set(20000, 20000, 1);
-neutronGroup.add(neuGlow);
-const jetGeo = new THREE.ConeGeometry(50, 4000, 32, 1, true);
-const jetMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-const jet1 = new THREE.Mesh(jetGeo, jetMat); jet1.position.y = 2000; neutronGroup.add(jet1);
-const jet2 = new THREE.Mesh(jetGeo, jetMat); jet2.position.y = -2000; jet2.rotation.z = Math.PI; neutronGroup.add(jet2);
+// Note: Crab Nebula (with pulsar) is now created inside loadGalaxyTextures() promise above
+// This ensures the nebula texture is loaded before creating the enhanced filament system
 
 function createSystem(name, color, x, y, z) {
     const sysGroup = new THREE.Group();

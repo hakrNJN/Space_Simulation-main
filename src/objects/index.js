@@ -16,6 +16,8 @@ import { Kepler22 } from './Kepler22.js';
 import { CrabNebula } from './CrabNebula.js';
 import { SpaceDebris } from './SpaceDebris.js';
 import { NebulaCloud } from './NebulaCloud.js';
+import { CosmicCloud } from './CosmicCloud.js';
+import { VolumetricArms } from './VolumetricArms.js';
 import { MilkyWayBand } from './MilkyWayBand.js';
 import { Andromeda } from './Andromeda.js';
 import { Constellations } from './Constellations.js';
@@ -46,6 +48,8 @@ export {
     CrabNebula,
     SpaceDebris,
     NebulaCloud,
+    CosmicCloud,
+    VolumetricArms,
     MilkyWayBand,
     Andromeda,
     Constellations,
@@ -94,6 +98,8 @@ export function createAllSystems() {
 
         // === Environmental ===
         new SpaceDebris(),
-        new NebulaCloud()
+        new NebulaCloud(),
+        new CosmicCloud(),
+        new VolumetricArms()
     ];
 }

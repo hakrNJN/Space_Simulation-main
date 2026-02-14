@@ -137,7 +137,7 @@
 
 ## Phase 6: Enhanced Crab Nebula
 
-- [ ] 6.1 Create filament particle system
+- [x] 6.1 Create filament particle system
   - Modify `js/objects/crabNebula.js`
   - Implement `createFilaments()` method
   - Generate 5,000 particles in irregular explosion pattern
